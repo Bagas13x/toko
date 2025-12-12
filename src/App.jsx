@@ -472,7 +472,7 @@ export default function App() {
               <section className="text-center border-b-2 border-gray-100 pb-12">
                  <span className="inline-block px-3 py-1 bg-black text-white text-xs font-mono mb-4">SISTEM STATUS</span>
                  <div className={`text-5xl md:text-8xl font-black uppercase tracking-widest mb-2 ${globalStatus === 'Aktif' ? 'text-green-700' : globalStatus === 'Perbaikan' ? 'text-yellow-600' : 'text-red-700'}`}>{globalStatus}</div>
-                 <p className="text-gray-400 text-sm italic font-mono">Status Toko selalu update setiap jamnya</p>
+                 <p className="text-gray-400 text-sm italic font-mono">Selalu update setiap Jamnya</p>
               </section>
               <section>
                  <h2 className="text-3xl font-bold italic border-b-4 border-black inline-block mb-8">Produk</h2>
