@@ -333,7 +333,7 @@ export default function App() {
           <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-black text-gray-300 transform transition-none ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:static md:translate-x-0 flex flex-col border-r border-gray-800`}>
              <div className="p-6 border-b border-gray-800 bg-black">
                 <h1 className="font-serif text-xl text-white tracking-wider font-bold">Lapor Ketua</h1>
-                <p className="text-[10px] font-mono text-gray-500 tracking-widest uppercase mt-1">Admin Panel</p>
+                <p className="text-[10px] font-mono text-gray-500 tracking-widest uppercase mt-1">Ketua Panel</p>
              </div>
              <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
                 {[{ id: 'dasbor', label: 'Dasbor', icon: Layout }, { id: 'katalog', label: 'Katalog Produk', icon: ShoppingBag }, { id: 'info', label: 'Informasi', icon: FileText }, { id: 'transaksi', label: 'Data Transaksi', icon: List }, { id: 'traffic', label: 'Traffic', icon: Activity }].map(item => (
@@ -465,7 +465,7 @@ export default function App() {
            <div className="border-b-4 border-black py-6 px-4 mb-8 bg-white sticky top-0 z-50">
               <div className="max-w-5xl mx-auto flex justify-between items-end">
                  <div><h1 className="text-3xl md:text-4xl font-black tracking-tighter uppercase mb-1">TOKO</h1><p className="text-[10px] md:text-xs font-mono text-gray-400 tracking-widest uppercase">Awanku Digital</p></div>
-                 <button onClick={() => setView('admin')} className="text-xs font-mono text-gray-400 hover:text-black underline">[Admin Login]</button>
+                 <button onClick={() => setView('admin')} className="text-xs font-mono text-gray-400 hover:text-black underline">[Ketua]</button>
               </div>
            </div>
            <div className="max-w-5xl mx-auto px-4 space-y-16">
@@ -515,7 +515,7 @@ export default function App() {
            </Modal>
            <Modal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} title="Detail Produk">
               {selectedProduct && (
-                  <div className="font-serif"><div className="border-2 border-black p-6 bg-white relative"><div className="flex items-center gap-4 mb-6 border-b border-gray-100 pb-4"><div className="w-16 h-16 bg-gray-100 flex items-center justify-center border border-gray-200"><ShoppingBag size={24}/></div><div><h2 className="text-xl font-bold">{selectedProduct.name}</h2><p className="text-sm text-gray-500 font-mono">{selectedProduct.app}</p></div></div><div className="bg-gray-50 p-4 border border-gray-100 mb-6 text-sm text-gray-600 leading-relaxed italic">"{selectedProduct.desc}"</div><div className="flex justify-between items-center"><div><p className="text-xs text-gray-400 uppercase">Harga</p><p className="text-2xl font-mono font-bold">{selectedProduct.price}</p></div><button className="bg-black text-white px-6 py-3 font-bold uppercase text-sm hover:bg-gray-800 flex items-center gap-2"><Phone size={16} /> Hubungi Admin</button></div></div></div>
+                  <div className="font-serif"><div className="border-2 border-black p-6 bg-white relative"><div className="flex items-center gap-4 mb-6 border-b border-gray-100 pb-4"><div className="w-16 h-16 bg-gray-100 flex items-center justify-center border border-gray-200"><ShoppingBag size={24}/></div><div><h2 className="text-xl font-bold">{selectedProduct.name}</h2><p className="text-sm text-gray-500 font-mono">{selectedProduct.app}</p></div></div><div className="bg-gray-50 p-4 border border-gray-100 mb-6 text-sm text-gray-600 leading-relaxed italic">"{selectedProduct.desc}"</div><div className="flex justify-between items-center"><div><p className="text-xs text-gray-400 uppercase">Harga</p><p className="text-2xl font-mono font-bold">{selectedProduct.price}</p></div><button className="bg-black text-white px-6 py-3 font-bold uppercase text-sm hover:bg-gray-800 flex items-center gap-2"><Phone size={16} /> Hubungi Ketua</button></div></div></div>
               )}
           </Modal>
         </div>
