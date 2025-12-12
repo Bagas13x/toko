@@ -223,7 +223,7 @@ export default function App() {
       setLoginError('');
       setView('admin');
     } else {
-      setLoginError('Sandi salah!');
+      setLoginError('Bukan Ketua? Pergi deh');
     }
   };
 
@@ -563,7 +563,7 @@ export default function App() {
                     </table>
                  </div>
               </section>
-              <footer className="text-center pt-12 text-xs font-mono text-gray-400 border-t border-gray-100 mt-12">&copy; 2024 TOKO LEDGER.</footer>
+              {/* <footer className="text-center pt-12 text-xs font-mono text-gray-400 border-t border-gray-100 mt-12">&copy; 2024 TOKO LEDGER.</footer> */}
            </div>
            <Modal isOpen={isReadMoreOpen} onClose={() => setIsReadMoreOpen(false)} title="Informasi Lengkap">
               {selectedInfo && (
