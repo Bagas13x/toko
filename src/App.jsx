@@ -196,12 +196,12 @@ export default function App() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (loginForm.username === 'bagas' && loginForm.password === 'admin123') {
+    if (loginForm.username === 'Bagas' && loginForm.password === '51512') {
       setIsAuthenticated(true);
       setLoginError('');
       setView('admin');
     } else {
-      setLoginError('Username atau Password salah!');
+      setLoginError('Bukan ketua ya? Pergi deh');
     }
   };
 
@@ -304,7 +304,7 @@ export default function App() {
         <div className="w-full max-w-md bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-black text-white mx-auto flex items-center justify-center mb-4"><Lock size={32} /></div>
-            <h1 className="text-2xl font-bold uppercase tracking-widest">Admin Login</h1>
+            <h1 className="text-2xl font-bold uppercase tracking-widest">Ketua</h1>
           </div>
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
@@ -332,7 +332,7 @@ export default function App() {
         <>
           <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-black text-gray-300 transform transition-none ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:static md:translate-x-0 flex flex-col border-r border-gray-800`}>
              <div className="p-6 border-b border-gray-800 bg-black">
-                <h1 className="font-serif text-xl text-white tracking-wider font-bold">TOKO</h1>
+                <h1 className="font-serif text-xl text-white tracking-wider font-bold">Lapor Ketua</h1>
                 <p className="text-[10px] font-mono text-gray-500 tracking-widest uppercase mt-1">Admin Panel</p>
              </div>
              <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
@@ -464,7 +464,7 @@ export default function App() {
         <div className="min-h-screen w-full bg-white text-black font-serif pb-20 overflow-y-auto">
            <div className="border-b-4 border-black py-6 px-4 mb-8 bg-white sticky top-0 z-50">
               <div className="max-w-5xl mx-auto flex justify-between items-end">
-                 <div><h1 className="text-3xl md:text-4xl font-black tracking-tighter uppercase mb-1">TOKO</h1><p className="text-[10px] md:text-xs font-mono text-gray-400 tracking-widest uppercase">Laporrr ketuaa ~</p></div>
+                 <div><h1 className="text-3xl md:text-4xl font-black tracking-tighter uppercase mb-1">TOKO</h1><p className="text-[10px] md:text-xs font-mono text-gray-400 tracking-widest uppercase">Awanku Digital</p></div>
                  <button onClick={() => setView('admin')} className="text-xs font-mono text-gray-400 hover:text-black underline">[Admin Login]</button>
               </div>
            </div>
