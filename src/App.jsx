@@ -125,25 +125,18 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 // --- MAIN APP ---
 
 export default function App() {
-  // Auth State
   const [user, setUser] = useState(null); // Firebase User
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false); // Admin Logic
   const [isLoading, setIsLoading] = useState(true);
-
-  // UI State
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [view, setView] = useState('public'); 
   const [activeTab, setActiveTab] = useState('dasbor');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  // Data State (Mulai dari array kosong, tunggu DB)
   const [globalStatus, setGlobalStatus] = useState('...');
   const [informations, setInformations] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [transactions, setTransactions] = useState([]);
-
-  // Input States
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isReadMoreOpen, setIsReadMoreOpen] = useState(false);
   const [selectedInfo, setSelectedInfo] = useState(null);
@@ -572,7 +565,42 @@ export default function App() {
            </Modal>
            <Modal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} title="Detail Produk">
               {selectedProduct && (
-                  <div className="font-serif"><div className="border-2 border-black p-6 bg-white relative"><div className="flex items-center gap-4 mb-6 border-b border-gray-100 pb-4"><div className="w-16 h-16 bg-gray-100 flex items-center justify-center border border-gray-200"><ShoppingBag size={24}/></div><div><h2 className="text-xl font-bold">{selectedProduct.name}</h2><p className="text-sm text-gray-500 font-mono">{selectedProduct.app}</p></div></div><div className="bg-gray-50 p-4 border border-gray-100 mb-6 text-sm text-gray-600 leading-relaxed italic">"{selectedProduct.desc}"</div><div className="flex justify-between items-center"><div><p className="text-xs text-gray-400 uppercase">Harga</p><p className="text-2xl font-mono font-bold">{selectedProduct.price}</p></div><button className="bg-black text-white px-6 py-3 font-bold uppercase text-sm hover:bg-gray-800 flex items-center gap-2"><Phone size={16} /> Hubungi Ketua</button></div></div></div>
+                  <div className="font-serif">
+  <div className="border-2 border-black p-6 bg-white relative">
+    <div className="flex items-center gap-4 mb-6 border-b border-gray-100 pb-4">
+      <div className="w-16 h-16 bg-gray-100 flex items-center justify-center border border-gray-200">
+        <ShoppingBag size={24}/>
+      </div>
+      <div>
+        <h2 className="text-xl font-bold">{selectedProduct.name}</h2>
+        <p className="text-sm text-gray-500 font-mono">{selectedProduct.app}</p>
+      </div>
+    </div>
+
+    <div className="bg-gray-50 p-4 border border-gray-100 mb-6 text-sm text-gray-600 leading-relaxed italic">
+      "{selectedProduct.desc}"
+    </div>
+
+    <div className="flex justify-between items-center">
+      <div>
+        <p className="text-xs text-gray-400 uppercase">Harga</p>
+        <p className="text-2xl font-mono font-bold">{selectedProduct.price}</p>
+      </div>
+
+      <a
+        href={`https://wa.me/6281319865384?text=${encodeURIComponent(
+          `Halo Toko, saya mau beli Produk ${selectedProduct.name} ready gak??`
+        )}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="bg-black text-white px-6 py-3 font-bold uppercase text-sm hover:bg-gray-800 flex items-center gap-2"
+      >
+        <Phone size={16} /> Hubungi Ketua
+      </a>
+    </div>
+  </div>
+</div>
+
               )}
           </Modal>
         </div>
