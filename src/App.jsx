@@ -319,7 +319,7 @@ export default function App() {
             <button type="submit" className="w-full bg-black text-white py-4 font-bold uppercase tracking-widest hover:bg-gray-800">Masuk</button>
           </form>
           <div className="mt-8 text-center pt-6 border-t border-gray-200">
-             <button onClick={() => setView('public')} className="text-sm font-mono text-gray-400 hover:text-black underline">&larr; Halaman Publik</button>
+             <button onClick={() => setView('public')} className="text-sm font-mono text-gray-400 hover:text-black underline">&larr; Kembali</button>
           </div>
         </div>
       </div>
@@ -464,18 +464,18 @@ export default function App() {
         <div className="min-h-screen w-full bg-white text-black font-serif pb-20 overflow-y-auto">
            <div className="border-b-4 border-black py-6 px-4 mb-8 bg-white sticky top-0 z-50">
               <div className="max-w-5xl mx-auto flex justify-between items-end">
-                 <div><h1 className="text-3xl md:text-4xl font-black tracking-tighter uppercase mb-1">TOKO</h1><p className="text-[10px] md:text-xs font-mono text-gray-400 tracking-widest uppercase">Catalog & Status Monitor</p></div>
+                 <div><h1 className="text-3xl md:text-4xl font-black tracking-tighter uppercase mb-1">TOKO</h1><p className="text-[10px] md:text-xs font-mono text-gray-400 tracking-widest uppercase">Laporrr ketuaa ~</p></div>
                  <button onClick={() => setView('admin')} className="text-xs font-mono text-gray-400 hover:text-black underline">[Admin Login]</button>
               </div>
            </div>
            <div className="max-w-5xl mx-auto px-4 space-y-16">
               <section className="text-center border-b-2 border-gray-100 pb-12">
-                 <span className="inline-block px-3 py-1 bg-black text-white text-xs font-mono mb-4">SYSTEM STATUS</span>
+                 <span className="inline-block px-3 py-1 bg-black text-white text-xs font-mono mb-4">SISTEM STATUS</span>
                  <div className={`text-5xl md:text-8xl font-black uppercase tracking-widest mb-2 ${globalStatus === 'Aktif' ? 'text-green-700' : globalStatus === 'Perbaikan' ? 'text-yellow-600' : 'text-red-700'}`}>{globalStatus}</div>
-                 <p className="text-gray-400 text-sm italic font-mono">Real-time update</p>
+                 <p className="text-gray-400 text-sm italic font-mono">Status Toko selalu update setiap jamnya</p>
               </section>
               <section>
-                 <h2 className="text-3xl font-bold italic border-b-4 border-black inline-block mb-8">Katalog Produk</h2>
+                 <h2 className="text-3xl font-bold italic border-b-4 border-black inline-block mb-8">Produk</h2>
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      {catalog.map((item) => (
                          <div key={item.id} className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] flex flex-col p-6 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-none">
@@ -498,7 +498,7 @@ export default function App() {
                   </div>
               </section>
               <section>
-                 <h2 className="text-2xl font-bold italic mb-6">Live Transaksi</h2>
+                 <h2 className="text-2xl font-bold italic mb-6">Transaksi</h2>
                  <div className="border-2 border-black bg-white overflow-x-auto">
                     <table className="w-full text-left min-w-[600px]">
                        <thead className="bg-gray-100 border-b-2 border-black font-mono text-xs uppercase"><tr><th className="px-4 py-3 border-r border-gray-300">Produk</th><th className="px-4 py-3 border-r border-gray-300">Waktu Tersisa</th><th className="px-4 py-3 text-center">Status</th></tr></thead>
@@ -506,7 +506,7 @@ export default function App() {
                     </table>
                  </div>
               </section>
-              <footer className="text-center pt-12 text-xs font-mono text-gray-400 border-t border-gray-100 mt-12">&copy; 2024 TOKO LEDGER.</footer>
+              {/* <footer className="text-center pt-12 text-xs font-mono text-gray-400 border-t border-gray-100 mt-12">&copy; lapor ketua</footer> */}
            </div>
            <Modal isOpen={isReadMoreOpen} onClose={() => setIsReadMoreOpen(false)} title="Informasi Lengkap">
               {selectedInfo && (
