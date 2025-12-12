@@ -135,7 +135,10 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
-  const [view, setView] = useState('admin');
+  
+  // PERBAIKAN UTAMA DI SINI: Default View 'public', bukan 'admin'
+  const [view, setView] = useState('public'); 
+  
   const [activeTab, setActiveTab] = useState('dasbor');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -205,7 +208,7 @@ export default function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setLoginForm({ username: '', password: '' });
-    setView('admin');
+    setView('admin'); // Balik ke halaman login admin (opsional, bisa ubah ke public jika mau)
   };
 
   const handleAddInfo = async () => {
