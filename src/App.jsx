@@ -502,7 +502,7 @@ export default function App() {
                       {/* BEST SELLER */}
                       {bestSellers.length > 0 && (
                           <section>
-                             <div className="border-l-4 border-black pl-4 mb-8"><h2 className="text-3xl font-bold italic inline-block">BEST SELLER 🔥</h2></div>
+                             <div className="border-l-4 border-black pl-4 mb-8"><h2 className="text-3xl font-bold italic inline-block">BEST SELLER</h2></div>
                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                                 {bestSellers.map((item) => (
                                     <div key={item.id} className="bg-stone-50 border border-gray-200 p-4 hover-lift cursor-pointer" onClick={() => {setSelectedProduct(item); setIsPreviewModalOpen(true);}}>
