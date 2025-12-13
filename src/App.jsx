@@ -17,10 +17,10 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { 
   Layout, List, Users, Activity, ExternalLink, Menu, X, Check, 
   AlertTriangle, XCircle, ShoppingBag, Eye, Plus, FileText, 
-  Trash2, Lock, LogOut, Phone, PauseCircle, Upload, Loader2
+  Trash2, Lock, LogOut, Phone, PauseCircle, Upload, Loader2, Bell
 } from 'lucide-react';
 
-// --- KONFIGURASI DATABASE (PUNYA KAMU) ---
+// --- KONFIGURASI DATABASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyDep19oGqL8o0_LUZNbhLuRgCgyeLHdYQM",
   authDomain: "toko-19d24.firebaseapp.com",
@@ -36,6 +36,28 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// --- KOMPONEN NOTIFIKASI POPUP (TOAST) ---
+const NotificationToast = ({ notification, onClose }) => {
+  if (!notification) return null;
+
+  return (
+    <div className="fixed top-4 right-4 z-[100] animate-bounce-in">
+      <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 flex items-center gap-3 max-w-sm">
+        <div className="bg-black text-white p-2 rounded-full">
+          <Bell size={20} />
+        </div>
+        <div>
+          <h4 className="font-bold text-sm font-serif uppercase tracking-wider">{notification.title}</h4>
+          <p className="text-xs text-gray-600 line-clamp-1">{notification.message}</p>
+        </div>
+        <button onClick={onClose} className="ml-auto text-gray-400 hover:text-black">
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // --- UTILITY COMPONENTS ---
 
 const TimeDisplay = ({ targetDate, status }) => {
@@ -48,7 +70,6 @@ const TimeDisplay = ({ targetDate, status }) => {
     }
 
     if (!targetDate) return;
-    // Konversi dari Firestore Timestamp atau Date biasa
     const target = targetDate.seconds ? new Date(targetDate.seconds * 1000) : new Date(targetDate);
 
     const calculate = () => {
@@ -125,18 +146,25 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 // --- MAIN APP ---
 
 export default function App() {
-  const [user, setUser] = useState(null); // Firebase User
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false); // Admin Logic
+  const [user, setUser] = useState(null);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [view, setView] = useState('public'); 
   const [activeTab, setActiveTab] = useState('dasbor');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Data State
   const [globalStatus, setGlobalStatus] = useState('...');
   const [informations, setInformations] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [transactions, setTransactions] = useState([]);
+
+  // Notification State
+  const [notification, setNotification] = useState(null);
+
+  // Input States
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isReadMoreOpen, setIsReadMoreOpen] = useState(false);
   const [selectedInfo, setSelectedInfo] = useState(null);
@@ -151,23 +179,24 @@ export default function App() {
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [newTransaction, setNewTransaction] = useState({ name: '', app: '', durationDays: 30, phone: '', email: '', bonus: '' });
 
-  // --- 1. SETUP AUTH & LISTENER (PENTING AGAR DATA MUNCUL) ---
+  // --- TRIGGER NOTIFICATION FUNCTION ---
+  const triggerNotification = (title, message) => {
+    // Play sound (optional)
+    // const audio = new Audio('/notification.mp3'); audio.play().catch(e => {}); 
+    setNotification({ title, message });
+    // Hilang otomatis setelah 4 detik
+    setTimeout(() => setNotification(null), 4000);
+  };
+
   useEffect(() => {
-    // Login Anonim agar diizinkan baca database
     const initAuth = async () => {
-      try {
-        await signInAnonymously(auth);
-      } catch (error) {
-        console.error("Auth Error:", error);
-      }
+      try { await signInAnonymously(auth); } catch (error) { console.error("Auth Error:", error); }
     };
     initAuth();
 
-    // Listener Auth
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Jika sudah login (anonim/bukan), mulai dengarkan data
         subscribeToData();
       }
     });
@@ -175,31 +204,61 @@ export default function App() {
     return () => unsubscribeAuth();
   }, []);
 
-  // --- 2. LISTENER DATA REAL-TIME ---
+  // --- LISTENER REAL-TIME DENGAN NOTIFIKASI ---
   const subscribeToData = () => {
-    // Status
+    // 1. Status
     onSnapshot(doc(db, "settings", "global_status"), (doc) => {
       if (doc.exists()) setGlobalStatus(doc.data().status);
       else setDoc(doc.ref, { status: "Aktif" });
-      setIsLoading(false); // Data pertama masuk
+      setIsLoading(false);
     });
 
-    // Katalog
+    // Flag untuk menghindari notifikasi saat pertama kali website dibuka (loading awal)
+    let isFirstInfoLoad = true;
+    let isFirstCatalogLoad = true;
+    let isFirstTransLoad = true;
+
+    // 2. Katalog Listener + Notif
     const qCatalog = query(collection(db, "catalog"), orderBy("id", "desc"));
     onSnapshot(qCatalog, (snapshot) => {
-      setCatalog(snapshot.docs.map(doc => ({ ...doc.data(), firebaseId: doc.id })));
+      const data = snapshot.docs.map(doc => ({ ...doc.data(), firebaseId: doc.id }));
+      setCatalog(data);
+      
+      // Cek apakah ada perubahan berupa PENAMBAHAN data
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added" && !isFirstCatalogLoad) {
+          triggerNotification("Produk Baru!", `Cek katalog: ${change.doc.data().name}`);
+        }
+      });
+      isFirstCatalogLoad = false;
     });
 
-    // Informasi
+    // 3. Informasi Listener + Notif
     const qInfo = query(collection(db, "informations"), orderBy("id", "desc"));
     onSnapshot(qInfo, (snapshot) => {
-      setInformations(snapshot.docs.map(doc => ({ ...doc.data(), firebaseId: doc.id })));
+      const data = snapshot.docs.map(doc => ({ ...doc.data(), firebaseId: doc.id }));
+      setInformations(data);
+
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added" && !isFirstInfoLoad) {
+          triggerNotification("Informasi Baru!", change.doc.data().title);
+        }
+      });
+      isFirstInfoLoad = false;
     });
 
-    // Transaksi
+    // 4. Transaksi Listener + Notif
     const qTrans = query(collection(db, "transactions"), orderBy("id", "desc"));
     onSnapshot(qTrans, (snapshot) => {
-      setTransactions(snapshot.docs.map(doc => ({ ...doc.data(), firebaseId: doc.id })));
+      const data = snapshot.docs.map(doc => ({ ...doc.data(), firebaseId: doc.id }));
+      setTransactions(data);
+
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added" && !isFirstTransLoad) {
+          triggerNotification("Transaksi Baru!", `Pelanggan baru: ${change.doc.data().name}`);
+        }
+      });
+      isFirstTransLoad = false;
     });
   };
 
@@ -226,11 +285,10 @@ export default function App() {
     setView('public');
   };
 
-  // Image Upload (Base64)
   const handleImageFile = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 800000) { // Limit 800KB
+      if (file.size > 800000) { 
         alert("File terlalu besar! Max 800KB");
         return;
       }
@@ -244,7 +302,6 @@ export default function App() {
     }
   };
 
-  // CRUD Operations
   const handleAddInfo = async () => {
     if(!newInfo.title || !newInfo.content) return;
     const infoData = {
@@ -335,7 +392,6 @@ export default function App() {
       )
   }
 
-  // LOGIN PAGE ADMIN
   if (view === 'admin' && !isAdminLoggedIn) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4 font-serif text-black">
@@ -365,14 +421,17 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-white font-sans text-black overflow-hidden">
+    <div className="flex h-screen bg-white font-sans text-black overflow-hidden relative">
+      {/* NOTIFICATION TOAST */}
+      <NotificationToast notification={notification} onClose={() => setNotification(null)} />
+
       {view === 'admin' ? (
         // --- ADMIN DASHBOARD ---
         <>
           <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-black text-gray-300 transform transition-none ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:static md:translate-x-0 flex flex-col border-r border-gray-800`}>
              <div className="p-6 border-b border-gray-800 bg-black">
                 <h1 className="font-serif text-xl text-white tracking-wider font-bold">Lapor Ketua</h1>
-                <p className="text-[10px] font-mono text-gray-500 tracking-widest uppercase mt-1">Panel Kontrol</p>
+                <p className="text-[10px] font-mono text-gray-500 tracking-widest uppercase mt-1">Ketua Panel</p>
              </div>
              <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
                 {[{ id: 'dasbor', label: 'Dasbor', icon: Layout }, { id: 'katalog', label: 'Katalog', icon: ShoppingBag }, { id: 'info', label: 'Informasi', icon: FileText }, { id: 'transaksi', label: 'Transaksi', icon: List }, { id: 'traffic', label: 'Traffic', icon: Activity }].map(item => (
@@ -464,12 +523,10 @@ export default function App() {
                         <Modal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} title="Tambah Informasi">
                             <div className="space-y-4 font-serif">
                                <input type="text" placeholder="Judul" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none font-bold" value={newInfo.title} onChange={e => setNewInfo({...newInfo, title: e.target.value})} />
-                               
                                <div className="border-2 border-dashed border-gray-300 p-6 text-center cursor-pointer hover:bg-gray-50 relative">
                                   <input type="file" accept="image/*" onChange={handleImageFile} className="absolute inset-0 opacity-0 cursor-pointer" />
                                   {isUploading ? <span className="animate-pulse font-bold">Uploading...</span> : newInfo.imageUrl ? <img src={newInfo.imageUrl} className="h-32 mx-auto object-cover border border-black" /> : <div className="flex flex-col items-center text-gray-400"><Upload size={24} className="mb-2" /><span className="text-sm">Klik untuk upload foto (Max 800KB)</span></div>}
                                </div>
-
                                <textarea placeholder="Isi Konten" className="w-full border-2 border-gray-300 p-3 focus:border-black outline-none h-40 text-sm" value={newInfo.content} onChange={e => setNewInfo({...newInfo, content: e.target.value})}></textarea>
                                <button onClick={handleAddInfo} disabled={isUploading} className="w-full bg-black text-white py-3 font-bold hover:bg-gray-800 disabled:opacity-50">PUBLIKASIKAN</button>
                             </div>
@@ -556,7 +613,7 @@ export default function App() {
                     </table>
                  </div>
               </section>
-              {/* <footer className="text-center pt-12 text-xs font-mono text-gray-400 border-t border-gray-100 mt-12">&copy; 2024 TOKO LEDGER.</footer> */}
+              <footer className="text-center pt-12 text-xs font-mono text-gray-400 border-t border-gray-100 mt-12">&copy; 2024 TOKO LEDGER.</footer>
            </div>
            <Modal isOpen={isReadMoreOpen} onClose={() => setIsReadMoreOpen(false)} title="Informasi Lengkap">
               {selectedInfo && (
@@ -565,42 +622,7 @@ export default function App() {
            </Modal>
            <Modal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} title="Detail Produk">
               {selectedProduct && (
-                  <div className="font-serif">
-  <div className="border-2 border-black p-6 bg-white relative">
-    <div className="flex items-center gap-4 mb-6 border-b border-gray-100 pb-4">
-      <div className="w-16 h-16 bg-gray-100 flex items-center justify-center border border-gray-200">
-        <ShoppingBag size={24}/>
-      </div>
-      <div>
-        <h2 className="text-xl font-bold">{selectedProduct.name}</h2>
-        <p className="text-sm text-gray-500 font-mono">{selectedProduct.app}</p>
-      </div>
-    </div>
-
-    <div className="bg-gray-50 p-4 border border-gray-100 mb-6 text-sm text-gray-600 leading-relaxed italic">
-      "{selectedProduct.desc}"
-    </div>
-
-    <div className="flex justify-between items-center">
-      <div>
-        <p className="text-xs text-gray-400 uppercase">Harga</p>
-        <p className="text-2xl font-mono font-bold">{selectedProduct.price}</p>
-      </div>
-
-      <a
-        href={`https://wa.me/6281319865384?text=${encodeURIComponent(
-          `Halo Toko, saya mau beli Produk ${selectedProduct.name} ready gak??`
-        )}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="bg-black text-white px-6 py-3 font-bold uppercase text-sm hover:bg-gray-800 flex items-center gap-2"
-      >
-        <Phone size={16} /> Hubungi Ketua
-      </a>
-    </div>
-  </div>
-</div>
-
+                  <div className="font-serif"><div className="border-2 border-black p-6 bg-white relative"><div className="flex items-center gap-4 mb-6 border-b border-gray-100 pb-4"><div className="w-16 h-16 bg-gray-100 flex items-center justify-center border border-gray-200"><ShoppingBag size={24}/></div><div><h2 className="text-xl font-bold">{selectedProduct.name}</h2><p className="text-sm text-gray-500 font-mono">{selectedProduct.app}</p></div></div><div className="bg-gray-50 p-4 border border-gray-100 mb-6 text-sm text-gray-600 leading-relaxed italic">"{selectedProduct.desc}"</div><div className="flex justify-between items-center"><div><p className="text-xs text-gray-400 uppercase">Harga</p><p className="text-2xl font-mono font-bold">{selectedProduct.price}</p></div><a href={`https://wa.me/6281319865384?text=${encodeURIComponent(`Halo Toko, saya mau beli Produk ${selectedProduct.name} ready gak??`)}`} target="_blank" rel="noopener noreferrer" className="bg-black text-white px-6 py-3 font-bold uppercase text-sm hover:bg-gray-800 flex items-center gap-2"><Phone size={16} /> Hubungi Ketua</a></div></div></div>
               )}
           </Modal>
         </div>
