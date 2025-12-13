@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
 import { 
-  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, 
-  onSnapshot, query, orderBy, setDoc, deleteField, where, getDocs
+  getFirestore, 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  onSnapshot,
+  query,
+  orderBy,
+  setDoc,
+  deleteField,
+  where,
+  getDocs
 } from "firebase/firestore";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { 
@@ -10,7 +21,8 @@ import {
   AlertTriangle, XCircle, ShoppingBag, Eye, Plus, FileText, 
   Trash2, Lock, LogOut, Phone, PauseCircle, Upload, Loader2, 
   Bell, MessageSquare, Send, CheckCircle2, Image as ImageIcon, 
-  Pencil, AlertCircle, Search, Star, MapPin, Instagram, LayoutTemplate, Camera
+  Pencil, AlertCircle, Search, Star, MapPin, Instagram, LayoutTemplate, Camera,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 
 // --- KONFIGURASI DATABASE ---
@@ -31,14 +43,62 @@ const auth = getAuth(app);
 
 // --- CSS ---
 const customStyles = `
-  @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-  .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 25s linear infinite; }
-  .reveal-hidden { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.5, 0, 0, 1); }
-  .reveal-visible { opacity: 1; transform: translateY(0); }
+  @keyframes marquee { 
+    0% { transform: translateX(0); } 
+    100% { transform: translateX(-50%); } 
+  }
+  .animate-marquee { 
+    display: inline-block; 
+    white-space: nowrap; 
+    animation: marquee 25s linear infinite; 
+  }
+  .reveal-hidden { 
+    opacity: 0; 
+    transform: translateY(30px); 
+    transition: all 0.8s cubic-bezier(0.5, 0, 0, 1); 
+  }
+  .reveal-visible { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
   .custom-scroll::-webkit-scrollbar { width: 6px; }
   .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
   .hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
   .hover-lift:hover { transform: translateY(-4px); box-shadow: 6px 6px 0px 0px rgba(0,0,0,1); }
+  
+  /* STATUS DRAWER ANIMATION */
+  .status-drawer {
+    transition: max-height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    position: relative;
+    z-index: 40;
+  }
+  .status-open { max-height: 500px; }
+  .status-closed { max-height: 0; }
+
+  /* CHEVRON BUTTON STYLE (FIXED POSISI & BERSIH) */
+  .chevron-trigger {
+    position: absolute;
+    bottom: -28px; /* Turun sedikit biar pas */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: black;
+    color: white;
+    width: 60px;
+    height: 28px;
+    border-bottom-left-radius: 100px;
+    border-bottom-right-radius: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 50;
+    border: none;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  .chevron-trigger:hover {
+    background-color: #222;
+  }
 `;
 
 // --- COMPONENT: BANNER CAROUSEL ---
@@ -194,6 +254,9 @@ export default function App() {
   const [customAlert, setCustomAlert] = useState(null); 
   const [editingId, setEditingId] = useState(null);
   
+  // Status Slider State
+  const [isStatusVisible, setIsStatusVisible] = useState(false);
+
   // Modals
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isReadMoreOpen, setIsReadMoreOpen] = useState(false);
@@ -204,6 +267,9 @@ export default function App() {
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false); 
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  
+  // NEW: MODAL KOMENTAR (POPUP)
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
 
   // Forms
   const [newInfo, setNewInfo] = useState({ title: '', content: '', imageUrl: '', isFeatured: false });
@@ -218,27 +284,42 @@ export default function App() {
 
   // Comment System
   const [commentEmail, setCommentEmail] = useState('');
-  const [isCustomerVerified, setIsCustomerVerified] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [commentImage, setCommentImage] = useState('');
+  const [commentRating, setCommentRating] = useState(5); 
   const [previewImage, setPreviewImage] = useState(null);
 
   useScrollAnimation();
 
+  // --- TRIGGER NOTIFICATION ---
   const triggerNotification = (title, message) => {
     setNotification({ title, message });
     setTimeout(() => setNotification(null), 4000);
   };
 
   useEffect(() => {
+    // Auth
     const initAuth = async () => { try { await signInAnonymously(auth); } catch (error) { console.error("Auth Error:", error); } };
     initAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) subscribeToData();
     });
-    return () => unsubscribeAuth();
+    
+    // Status Auto Slide Logic
+    const openTimer = setTimeout(() => {
+        setIsStatusVisible(true);
+        const closeTimer = setTimeout(() => {
+            setIsStatusVisible(false);
+        }, 5000); 
+        return () => clearTimeout(closeTimer);
+    }, 2000); 
+
+    return () => {
+        unsubscribeAuth();
+        clearTimeout(openTimer);
+    }
   }, []);
 
   const subscribeToData = () => {
@@ -284,72 +365,59 @@ export default function App() {
   };
 
   // --- CRUD HELPERS ---
-  const handleToggleFeaturedInfo = async (info) => {
-     const batchUpdate = informations.filter(i => i.isFeatured && i.firebaseId !== info.firebaseId);
-     batchUpdate.forEach(i => updateDoc(doc(db, "informations", i.firebaseId), { isFeatured: false }));
-     await updateDoc(doc(db, "informations", info.firebaseId), { isFeatured: !info.isFeatured });
-  }
-  const handleSaveInfo = async () => {
-    if(!newInfo.title) return;
-    const data = { title: newInfo.title, content: newInfo.content, image: newInfo.imageUrl || "https://placehold.co/600x400/png?text=No+Image", isFeatured: newInfo.isFeatured || false, ...(editingId ? {} : { id: Date.now(), date: new Date().toLocaleDateString('id-ID') }) };
-    if (editingId) await updateDoc(doc(db, "informations", editingId), data); else await addDoc(collection(db, "informations"), data);
-    setNewInfo({ title: '', content: '', imageUrl: '' }); setIsInfoModalOpen(false); setEditingId(null);
-  };
+  const handleToggleFeaturedInfo = async (info) => { const batchUpdate = informations.filter(i => i.isFeatured && i.firebaseId !== info.firebaseId); batchUpdate.forEach(i => updateDoc(doc(db, "informations", i.firebaseId), { isFeatured: false })); await updateDoc(doc(db, "informations", info.firebaseId), { isFeatured: !info.isFeatured }); }
+  const handleSaveInfo = async () => { if(!newInfo.title) return; const data = { title: newInfo.title, content: newInfo.content, image: newInfo.imageUrl || "https://placehold.co/600x400/png?text=No+Image", isFeatured: newInfo.isFeatured || false, ...(editingId ? {} : { id: Date.now(), date: new Date().toLocaleDateString('id-ID') }) }; if (editingId) await updateDoc(doc(db, "informations", editingId), data); else { await addDoc(collection(db, "informations"), data); handleSelectInfoForBroadcast({ ...data, id: data.id }); } setNewInfo({ title: '', content: '', imageUrl: '' }); setIsInfoModalOpen(false); setEditingId(null); };
   const handleDeleteInfo = async (id) => { if(window.confirm("Hapus?")) await deleteDoc(doc(db, "informations", id)); };
-
   const handleToggleBestSeller = async (item) => { await updateDoc(doc(db, "catalog", item.firebaseId), { isBestSeller: !item.isBestSeller }); }
-  const handleSaveProduct = async () => {
-    if(!newProduct.name) return;
-    if (editingId) await updateDoc(doc(db, "catalog", editingId), newProduct); else await addDoc(collection(db, "catalog"), { ...newProduct, id: Date.now() });
-    setNewProduct({ name: '', app: '', price: '', desc: '' }); setIsCatalogModalOpen(false); setEditingId(null);
-  };
+  const handleSaveProduct = async () => { if(!newProduct.name) return; if (editingId) await updateDoc(doc(db, "catalog", editingId), newProduct); else await addDoc(collection(db, "catalog"), { ...newProduct, id: Date.now() }); setNewProduct({ name: '', app: '', price: '', desc: '' }); setIsCatalogModalOpen(false); setEditingId(null); };
   const handleDeleteProduct = async (id) => { if(window.confirm("Hapus?")) await deleteDoc(doc(db, "catalog", id)); };
-
-  // NEW: BANNER CRUD
-  const handleSaveBanner = async () => {
-      if(!newBanner.title) return;
-      const data = { title: newBanner.title, desc: newBanner.desc, image: newBanner.imageUrl, ...(editingId ? {} : { id: Date.now() }) };
-      if (editingId) await updateDoc(doc(db, "banners", editingId), data); else await addDoc(collection(db, "banners"), data);
-      setNewBanner({ title: '', desc: '', imageUrl: '' }); setIsBannerModalOpen(false); setEditingId(null);
-  }
-  const handleDeleteBanner = async (id) => { if(window.confirm("Hapus Banner?")) await deleteDoc(doc(db, "banners", id)); };
-
-  const handleSaveActivity = async () => {
-      if(!newActivity.caption) return;
-      const data = { caption: newActivity.caption, desc: newActivity.desc, image: newActivity.imageUrl, ...(editingId ? {} : { id: Date.now(), date: new Date().toLocaleDateString('id-ID') }) };
-      if (editingId) await updateDoc(doc(db, "activities", editingId), data); else await addDoc(collection(db, "activities"), data);
-      setNewActivity({ caption: '', desc: '', imageUrl: '' }); setIsActivityModalOpen(false); setEditingId(null);
-  }
+  const handleSaveBanner = async () => { if(!newBanner.title) return; const data = { title: newBanner.title, desc: newBanner.desc, image: newBanner.imageUrl, ...(editingId ? {} : { id: Date.now() }) }; if (editingId) await updateDoc(doc(db, "banners", editingId), data); else await addDoc(collection(db, "banners"), data); setNewBanner({ title: '', desc: '', imageUrl: '' }); setIsBannerModalOpen(false); setEditingId(null); }
+  const handleDeleteBanner = async (id) => { if(window.confirm("Hapus?")) await deleteDoc(doc(db, "banners", id)); };
+  const handleSaveActivity = async () => { if(!newActivity.caption) return; const data = { caption: newActivity.caption, desc: newActivity.desc, image: newActivity.imageUrl, ...(editingId ? {} : { id: Date.now(), date: new Date().toLocaleDateString('id-ID') }) }; if (editingId) await updateDoc(doc(db, "activities", editingId), data); else await addDoc(collection(db, "activities"), data); setNewActivity({ caption: '', desc: '', imageUrl: '' }); setIsActivityModalOpen(false); setEditingId(null); }
   const handleDeleteActivity = async (id) => { if(window.confirm("Hapus?")) await deleteDoc(doc(db, "activities", id)); };
-
-  const handleSaveTransaction = async () => {
-    if (!newTransaction.name) return;
-    let data = { name: newTransaction.name, app: newTransaction.app, phone: newTransaction.phone, email: newTransaction.email, bonus: newTransaction.bonus };
-    if (newTransaction.durationDays) { const t = new Date(); t.setDate(t.getDate() + parseInt(newTransaction.durationDays)); data.targetDate = t; data.status = 'Aktif'; }
-    if (editingId) await updateDoc(doc(db, "transactions", editingId), data); else await addDoc(collection(db, "transactions"), { ...data, id: Date.now(), status: 'Aktif' });
-    setNewTransaction({ name: '', app: '', durationDays: '', phone: '', email: '', bonus: '' }); setIsTransactionModalOpen(false); setEditingId(null);
-  };
-  const handleStatusChange = async (t, newStatus) => {
-    const ref = doc(db, "transactions", t.firebaseId);
-    if (newStatus === 'Aktif' && t.status !== 'Aktif' && t.frozenRemaining) { const nt = new Date(Date.now() + t.frozenRemaining); await updateDoc(ref, { status: 'Aktif', targetDate: nt, frozenRemaining: deleteField() }); } 
-    else if (newStatus !== 'Aktif' && t.status === 'Aktif') { const ct = t.targetDate.seconds ? new Date(t.targetDate.seconds * 1000) : new Date(t.targetDate); const rem = ct.getTime() - Date.now(); await updateDoc(ref, { status: newStatus, frozenRemaining: rem > 0 ? rem : 0 }); } 
-    else await updateDoc(ref, { status: newStatus });
-  };
+  const handleSaveTransaction = async () => { if (!newTransaction.name) return; let data = { name: newTransaction.name, app: newTransaction.app, phone: newTransaction.phone, email: newTransaction.email, bonus: newTransaction.bonus }; if (newTransaction.durationDays) { const t = new Date(); t.setDate(t.getDate() + parseInt(newTransaction.durationDays)); data.targetDate = t; data.status = 'Aktif'; } if (editingId) await updateDoc(doc(db, "transactions", editingId), data); else await addDoc(collection(db, "transactions"), { ...data, id: Date.now(), status: 'Aktif' }); setNewTransaction({ name: '', app: '', durationDays: '', phone: '', email: '', bonus: '' }); setIsTransactionModalOpen(false); setEditingId(null); };
+  const handleStatusChange = async (t, newStatus) => { const ref = doc(db, "transactions", t.firebaseId); if (newStatus === 'Aktif' && t.status !== 'Aktif' && t.frozenRemaining) { const nt = new Date(Date.now() + t.frozenRemaining); await updateDoc(ref, { status: 'Aktif', targetDate: nt, frozenRemaining: deleteField() }); } else if (newStatus !== 'Aktif' && t.status === 'Aktif') { const ct = t.targetDate.seconds ? new Date(t.targetDate.seconds * 1000) : new Date(t.targetDate); const rem = ct.getTime() - Date.now(); await updateDoc(ref, { status: newStatus, frozenRemaining: rem > 0 ? rem : 0 }); } else await updateDoc(ref, { status: newStatus }); };
   const handleDeleteTransaction = async (id) => { if(window.confirm("Hapus?")) await deleteDoc(doc(db, "transactions", id)); };
-
   const handleSelectInfoForBroadcast = (info) => { setSelectedBroadcastInfoId(info.id); setBroadcastMsg(`*${info.title.toUpperCase()}*\n\n${info.content}\n\n----------------\n\nAkses Katalog Lengkap:\nhttps://toko-dun.vercel.app/`); };
   const sendBroadcast = (phone) => { if (!phone) return; let p = phone.replace(/\D/g, ''); if (p.startsWith('0')) p = '62' + p.slice(1); window.open(`https://wa.me/${p}?text=${encodeURIComponent(broadcastMsg || "Halo kak! Cek katalog kami: https://toko-dun.vercel.app/")}`, '_blank'); };
   
+  // --- COMMENT SYSTEM HANDLERS ---
   const handleVerifyCustomer = async () => {
     if (!commentEmail) { setCustomAlert({ title: "Email Kosong", message: "Tolong isi email kamu dulu ya!" }); return; }
     setIsCheckingEmail(true);
     const q = query(collection(db, "transactions"), where("email", "==", commentEmail));
     const snap = await getDocs(q);
-    if (!snap.empty) { setIsCustomerVerified(true); triggerNotification("Berhasil", "Kamu terdaftar sebagai pelanggan!"); } 
-    else { setCustomAlert({ title: "Ups, Maaf!", message: "Bukan langganan Toko, langganan dulu dong supaya bisa komen ~" }); setIsCustomerVerified(false); }
+    if (!snap.empty) { 
+        // SUKSES VERIFIKASI -> BUKA MODAL
+        setIsCommentModalOpen(true); 
+    } else { 
+        setCustomAlert({ title: "Ups, Maaf!", message: "Bukan langganan Toko, langganan dulu dong supaya bisa komen ~" }); 
+    }
     setIsCheckingEmail(false);
   };
-  const handlePostComment = async () => { if (!commentText) return; await addDoc(collection(db, "comments"), { email: commentEmail, text: commentText, image: commentImage, timestamp: Date.now(), date: new Date().toLocaleString() }); setCommentText(''); setCommentImage(''); setCustomAlert({ title: "Terima Kasih", message: "Komentar kamu berhasil dikirim!" }); };
+
+  const handleCommentImage = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.size > 500000) { alert("Max 500KB"); return; }
+        const r = new FileReader(); r.onloadend = () => setCommentImage(r.result); r.readAsDataURL(file);
+    }
+  };
+
+  const handlePostComment = async () => {
+    if (!commentText) return;
+    await addDoc(collection(db, "comments"), { 
+        email: commentEmail, 
+        text: commentText, 
+        image: commentImage, 
+        rating: commentRating, 
+        timestamp: Date.now(), 
+        date: new Date().toLocaleString() 
+    });
+    setCommentText(''); setCommentImage(''); setCommentRating(5);
+    setIsCommentModalOpen(false); 
+    setCustomAlert({ title: "Terima Kasih", message: "Komentar kamu berhasil dikirim!" });
+  };
 
   const filteredCatalog = catalog.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.app.toLowerCase().includes(searchQuery.toLowerCase()));
   const featuredInfo = informations.find(i => i.isFeatured);
@@ -357,7 +425,7 @@ export default function App() {
 
   // --- RENDERING ---
 
-  if (isLoading) return <div className="min-h-screen flex flex-col items-center justify-center bg-white"><Loader2 className="animate-spin mb-4" size={40} /><p className="font-serif text-sm tracking-widest uppercase">Sebentar ketua...</p></div>;
+  if (isLoading) return <div className="min-h-screen flex flex-col items-center justify-center bg-white"><Loader2 className="animate-spin mb-4" size={40} /><p className="font-serif text-sm tracking-widest uppercase">Sabar ketua...</p></div>;
 
   if (view === 'admin' && !isAdminLoggedIn) return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4 font-serif text-black">
@@ -398,7 +466,7 @@ export default function App() {
                    {activeTab === 'dasbor' && <div className="bg-white p-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"><h2 className="font-serif text-2xl font-bold text-black mb-4 border-b-2 border-gray-100 pb-2">Status Utama</h2><div className="grid md:grid-cols-2 gap-8 mt-6"><div><label className="block font-serif text-gray-500 mb-3 text-sm uppercase tracking-wider font-bold">Ubah Status</label>{['Aktif', 'Perbaikan', 'Mati'].map((status) => (<button key={status} onClick={() => updateGlobalStatus(status)} className={`flex items-center justify-between px-5 py-3 border-2 text-left mb-2 ${globalStatus === status ? 'border-black bg-gray-100 font-bold text-black' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-400'}`}><span className="font-serif">{status}</span>{globalStatus === status && <Check size={16} />}</button>))}</div><div><div className="bg-gray-50 p-4 border border-gray-200 mb-4 text-center"><p className="text-xs text-gray-500 uppercase font-bold mb-2">Akses Web Publik</p><button onClick={() => setView('public')} className="w-full border-2 border-black bg-black text-white py-3 px-4 font-serif hover:bg-gray-800 flex justify-center items-center gap-2"><ExternalLink size={16} /> Lihat Web</button></div></div></div></div>}
                    {activeTab === 'banner' && <div className="space-y-6"><div className="flex justify-between items-center mb-4"><h2 className="font-serif text-2xl font-bold text-black">Banner Promo</h2><button onClick={() => { setEditingId(null); setNewBanner({ title: '', desc: '', imageUrl: '' }); setIsBannerModalOpen(true); }} className="bg-black text-white px-4 py-2 font-serif text-sm hover:bg-gray-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] flex items-center gap-2"><Plus size={16} /> Tambah</button></div><div className="grid grid-cols-1 md:grid-cols-2 gap-6">{banners.map((ban) => (<div key={ban.id} className="bg-white border-2 border-black relative group h-40 overflow-hidden"><img src={ban.image} className="w-full h-full object-cover" /><div className="absolute inset-0 bg-black/50 flex flex-col justify-end p-4"><h3 className="text-white font-bold">{ban.title}</h3><p className="text-gray-200 text-xs">{ban.desc}</p></div><div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => {setEditingId(ban.firebaseId); setNewBanner(ban); setIsBannerModalOpen(true)}} className="bg-white p-1 border border-black"><Pencil size={14}/></button><button onClick={() => handleDeleteBanner(ban.firebaseId)} className="bg-red-500 text-white p-1 border border-black"><Trash2 size={14}/></button></div></div>))}</div><Modal isOpen={isBannerModalOpen} onClose={() => setIsBannerModalOpen(false)} title={editingId ? "Edit Banner" : "Tambah Banner"}><div className="space-y-4 font-serif"><input type="text" placeholder="Judul Promo (Singkat)" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none font-bold" value={newBanner.title} onChange={e => setNewBanner({...newBanner, title: e.target.value})} /><input type="text" placeholder="Deskripsi Singkat" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none" value={newBanner.desc} onChange={e => setNewBanner({...newBanner, desc: e.target.value})} /><div className="border-2 border-dashed border-gray-300 p-6 text-center cursor-pointer hover:bg-gray-50 relative"><input type="file" accept="image/*" onChange={(e) => handleImageFile(e, setNewBanner, newBanner)} className="absolute inset-0 opacity-0 cursor-pointer" />{isUploading ? <span className="animate-pulse">Uploading...</span> : newBanner.imageUrl ? <img src={newBanner.imageUrl} className="h-32 mx-auto object-cover" /> : <span>Upload Banner (Landscape)</span>}</div><button onClick={handleSaveBanner} className="w-full bg-black text-white py-3 font-bold hover:bg-gray-800">{editingId ? "UPDATE" : "SIMPAN"}</button></div></Modal></div>}
                    {activeTab === 'katalog' && <div className="space-y-6"><div className="flex justify-between items-center mb-4"><h2 className="font-serif text-2xl font-bold text-black">Manajemen Katalog</h2><button onClick={() => { setEditingId(null); setNewProduct({ name: '', app: '', price: '', desc: '', isBestSeller: false }); setIsCatalogModalOpen(true); }} className="bg-black text-white px-4 py-2 font-serif text-sm hover:bg-gray-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] flex items-center gap-2"><Plus size={16} /> Tambah</button></div><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{catalog.map((item) => (<div key={item.id} className="bg-white border-2 border-black p-0 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col relative group"><div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleToggleBestSeller(item)} className="p-1 bg-white border border-yellow-500 text-yellow-500 hover:bg-yellow-50"><Star size={16} fill={item.isBestSeller ? "gold" : "none"} /></button><button onClick={() => openProductModal(item)} className="text-blue-500 bg-white p-1 border border-blue-500 hover:bg-blue-50"><Pencil size={16}/></button><button onClick={() => handleDeleteProduct(item.firebaseId)} className="text-red-500 bg-white p-1 border border-red-500 hover:bg-red-50"><Trash2 size={16}/></button></div><div className="bg-gray-50 p-6 border-b-2 border-black flex items-center justify-center"><ShoppingBag size={40} className="text-gray-400" /></div><div className="p-5 flex-1 flex flex-col"><h3 className="font-serif font-bold text-lg text-black mb-1">{item.name}</h3><span className="text-xs font-mono bg-gray-100 text-gray-500 px-2 py-1 w-fit mb-3 border border-gray-200">{item.app}</span><p className="text-gray-500 text-sm font-serif italic mb-4 line-clamp-2">"{item.desc}"</p><div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center"><span className="font-mono font-bold text-black">{item.price}</span></div></div></div>))}</div><Modal isOpen={isCatalogModalOpen} onClose={() => setIsCatalogModalOpen(false)} title={editingId ? "Edit Produk" : "Tambah Produk"}><div className="space-y-4 font-serif"><input type="text" placeholder="Nama Produk" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} /><div className="grid grid-cols-2 gap-4"><input type="text" placeholder="Aplikasi" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none" value={newProduct.app} onChange={e => setNewProduct({...newProduct, app: e.target.value})} /><input type="text" placeholder="Harga" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} /></div><textarea placeholder="Deskripsi (Gunakan Enter untuk baris baru)" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none h-24" value={newProduct.desc} onChange={e => setNewProduct({...newProduct, desc: e.target.value})}></textarea><button onClick={handleSaveProduct} className="w-full bg-black text-white py-3 font-bold hover:bg-gray-800">{editingId ? "UPDATE" : "SIMPAN"}</button></div></Modal></div>}
-                   {activeTab === 'info' && <div className="space-y-6"><div className="flex justify-between items-center mb-4"><h2 className="font-serif text-2xl font-bold text-black">Kelola Informasi</h2><button onClick={() => openInfoModal()} className="bg-black text-white px-4 py-2 font-serif text-sm hover:bg-gray-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] flex items-center gap-2"><Plus size={16} /> Tambah</button></div><div className="grid grid-cols-1 gap-6">{informations.map((info) => (<div key={info.id} className="flex flex-col md:flex-row bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative group"><div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleToggleFeaturedInfo(info)} className="p-1 bg-white border border-yellow-500 text-yellow-500 hover:bg-yellow-50" title="Tampilkan di Beranda"><Star size={16} fill={info.isFeatured ? "gold" : "none"} /></button><button onClick={() => openInfoModal(info)} className="text-blue-500 bg-white p-1 border border-blue-500 hover:bg-blue-50"><Pencil size={16}/></button><button onClick={() => handleDeleteInfo(info.firebaseId)} className="text-red-500 bg-white p-1 border border-red-500 hover:bg-red-50"><Trash2 size={16}/></button></div><div className="md:w-48 h-48 md:h-auto bg-gray-100 relative shrink-0 border-b-2 md:border-b-0 md:border-r-2 border-black"><img src={info.image} alt="cover" className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://placehold.co/600x400/png'} /></div><div className="p-6 flex-1 flex flex-col"><div className="flex justify-between items-start mb-2"><span className="text-xs font-mono text-gray-400 uppercase tracking-widest">{info.date}</span></div><h3 className="font-serif font-bold text-xl text-black mb-3">{info.title}</h3><p className="text-gray-600 font-serif text-sm line-clamp-2 mb-4 whitespace-pre-wrap">{info.content}</p></div></div>))}</div><Modal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} title={editingId ? "Edit Info" : "Tambah Info"}><div className="space-y-4 font-serif"><input type="text" placeholder="Judul" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none font-bold" value={newInfo.title} onChange={e => setNewInfo({...newInfo, title: e.target.value})} /><div className="border-2 border-dashed border-gray-300 p-6 text-center cursor-pointer hover:bg-gray-50 relative"><input type="file" accept="image/*" onChange={(e) => handleImageFile(e, setNewInfo, newInfo)} className="absolute inset-0 opacity-0 cursor-pointer" />{isUploading ? <span className="animate-pulse font-bold">Uploading...</span> : newInfo.imageUrl ? <img src={newInfo.imageUrl} className="h-32 mx-auto object-cover border border-black" /> : <div className="flex flex-col items-center text-gray-400"><Upload size={24} className="mb-2" /><span className="text-sm">Klik untuk upload foto</span></div>}</div><textarea placeholder="Isi Konten (Gunakan Enter untuk baris baru)" className="w-full border-2 border-gray-300 p-3 focus:border-black outline-none h-40 text-sm" value={newInfo.content} onChange={e => setNewInfo({...newInfo, content: e.target.value})}></textarea><button onClick={handleSaveInfo} disabled={isUploading} className="w-full bg-black text-white py-3 font-bold hover:bg-gray-800 disabled:opacity-50">{editingId ? "UPDATE" : "PUBLIKASIKAN"}</button></div></Modal></div>}
+                   {activeTab === 'info' && <div className="space-y-6"><div className="flex justify-between items-center mb-4"><h2 className="font-serif text-2xl font-bold text-black">Kelola Informasi</h2><button onClick={() => openInfoModal()} className="bg-black text-white px-4 py-2 font-serif text-sm hover:bg-gray-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] flex items-center gap-2"><Plus size={16} /> Tambah</button></div><div className="grid grid-cols-1 gap-6">{informations.map((info) => (<div key={info.id} className="flex flex-col md:flex-row bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative group"><div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleToggleFeaturedInfo(info)} className="p-1 bg-white border border-yellow-500 text-yellow-500 hover:bg-yellow-50" title="Tampilkan di Beranda"><Star size={16} fill={info.isFeatured ? "gold" : "none"} /></button><button onClick={() => openInfoModal(info)} className="text-blue-500 bg-white p-1 border border-blue-500 hover:bg-blue-50"><Pencil size={16}/></button><button onClick={() => handleDeleteInfo(info.firebaseId)} className="text-red-500 bg-white p-1 border border-red-500 hover:bg-red-50"><Trash2 size={16}/></button></div><div className="md:w-48 h-48 md:h-auto bg-gray-100 relative shrink-0 border-b-2 md:border-b-0 md:border-r-2 border-black"><img src={info.image} alt="cover" className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://placehold.co/600x400/png'} /></div><div className="p-6 flex-1 flex flex-col"><div className="flex justify-between items-start mb-2"><span className="text-xs font-mono text-gray-400 uppercase tracking-widest">{info.date}</span></div><h3 className="font-serif font-bold text-xl text-black mb-3">{info.title}</h3><p className="text-gray-600 font-serif text-sm line-clamp-2 mb-4">{info.content}</p></div></div>))}</div><Modal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} title={editingId ? "Edit Info" : "Tambah Info"}><div className="space-y-4 font-serif"><input type="text" placeholder="Judul" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none font-bold" value={newInfo.title} onChange={e => setNewInfo({...newInfo, title: e.target.value})} /><div className="border-2 border-dashed border-gray-300 p-6 text-center cursor-pointer hover:bg-gray-50 relative"><input type="file" accept="image/*" onChange={(e) => handleImageFile(e, setNewInfo, newInfo)} className="absolute inset-0 opacity-0 cursor-pointer" />{isUploading ? <span className="animate-pulse font-bold">Uploading...</span> : newInfo.imageUrl ? <img src={newInfo.imageUrl} className="h-32 mx-auto object-cover border border-black" /> : <div className="flex flex-col items-center text-gray-400"><Upload size={24} className="mb-2" /><span className="text-sm">Klik untuk upload foto</span></div>}</div><textarea placeholder="Isi Konten (Gunakan Enter untuk baris baru)" className="w-full border-2 border-gray-300 p-3 focus:border-black outline-none h-40 text-sm" value={newInfo.content} onChange={e => setNewInfo({...newInfo, content: e.target.value})}></textarea><button onClick={handleSaveInfo} disabled={isUploading} className="w-full bg-black text-white py-3 font-bold hover:bg-gray-800 disabled:opacity-50">{editingId ? "UPDATE" : "PUBLIKASIKAN"}</button></div></Modal></div>}
                    {activeTab === 'kegiatan' && <div className="space-y-6"><div className="flex justify-between items-center mb-4"><h2 className="font-serif text-2xl font-bold text-black">Kegiatan Admin</h2><button onClick={() => { setEditingId(null); setNewActivity({ caption: '', desc: '', imageUrl: '' }); setIsActivityModalOpen(true); }} className="bg-black text-white px-4 py-2 font-serif text-sm hover:bg-gray-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] flex items-center gap-2"><Plus size={16} /> Tambah</button></div><div className="grid grid-cols-1 gap-6">{activities.map((act) => (<div key={act.id} className="bg-white border-2 border-black p-4 relative group"><div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => {setEditingId(act.firebaseId); setNewActivity(act); setIsActivityModalOpen(true)}} className="text-blue-500 bg-white p-1 border border-blue-500"><Pencil size={16}/></button><button onClick={() => handleDeleteActivity(act.firebaseId)} className="text-red-500 bg-white p-1 border border-red-500"><Trash2 size={16}/></button></div><img src={act.image} className="w-full h-48 object-cover mb-4 border border-gray-200" /><h3 className="font-bold text-lg mb-2">{act.caption}</h3><p className="text-sm text-gray-600 line-clamp-3">{act.desc}</p><span className="text-xs text-gray-400 mt-2 block">{act.date}</span></div>))}</div><Modal isOpen={isActivityModalOpen} onClose={() => setIsActivityModalOpen(false)} title={editingId ? "Edit Kegiatan" : "Tambah Kegiatan"}><div className="space-y-4 font-serif"><input type="text" placeholder="Caption Singkat" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none font-bold" value={newActivity.caption} onChange={e => setNewActivity({...newActivity, caption: e.target.value})} /><div className="border-2 border-dashed border-gray-300 p-6 text-center cursor-pointer hover:bg-gray-50 relative"><input type="file" accept="image/*" onChange={(e) => handleImageFile(e, setNewActivity, newActivity)} className="absolute inset-0 opacity-0 cursor-pointer" />{isUploading ? <span className="animate-pulse">Uploading...</span> : newActivity.imageUrl ? <img src={newActivity.imageUrl} className="h-32 mx-auto object-cover" /> : <span>Upload Foto</span>}</div><textarea placeholder="Deskripsi Kegiatan" className="w-full border-2 border-gray-300 p-3 focus:border-black outline-none h-32 text-sm" value={newActivity.desc} onChange={e => setNewActivity({...newActivity, desc: e.target.value})}></textarea><button onClick={handleSaveActivity} className="w-full bg-black text-white py-3 font-bold hover:bg-gray-800">{editingId ? "UPDATE" : "POSTING"}</button></div></Modal></div>}
                    {activeTab === 'broadcast' && <div className="grid md:grid-cols-2 gap-8"><div className="space-y-6"><div className="bg-white p-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"><h2 className="font-serif text-2xl font-bold text-black mb-4">1. Pesan Broadcast</h2><div className="mb-4"><label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Pilih Dari Informasi:</label><div className="flex gap-2 overflow-x-auto pb-2">{informations.map((info) => (<div key={info.id} onClick={() => handleSelectInfoForBroadcast(info)} className={`flex-shrink-0 w-40 p-2 border-2 cursor-pointer transition-all ${selectedBroadcastInfoId === info.id ? 'border-green-600 bg-green-50' : 'border-gray-200 hover:border-black'}`}><div className="h-20 bg-gray-100 mb-2 overflow-hidden"><img src={info.image} className="w-full h-full object-cover" /></div><p className="text-xs font-bold truncate">{info.title}</p></div>))}</div></div><textarea className="w-full h-40 border-2 border-gray-300 p-3 focus:border-black outline-none font-sans text-sm" placeholder="Tulis pesan..." value={broadcastMsg} onChange={(e) => setBroadcastMsg(e.target.value)}></textarea></div></div><div className="space-y-6"><div className="bg-white p-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"><h2 className="font-serif text-2xl font-bold text-black mb-4">2. Kirim Ke Pelanggan</h2><div className="bg-gray-50 border-2 border-gray-100 h-80 overflow-y-auto p-2 space-y-2">{customerNumbers.map((phone, idx) => (<div key={idx} className="flex justify-between items-center bg-white p-3 border border-gray-200 shadow-sm"><div className="flex items-center gap-3"><div className="bg-green-100 p-2 rounded-full text-green-600"><Phone size={14} /></div><span className="font-mono text-sm font-bold text-gray-700">{phone}</span></div><button onClick={() => sendBroadcast(phone)} className="bg-black text-white px-4 py-1.5 text-xs font-bold hover:bg-gray-800 flex items-center gap-2 uppercase tracking-wider">Kirim <Send size={10} /></button></div>))}</div></div></div></div>}
                    {activeTab === 'transaksi' && <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"><div className="p-4 border-b-2 border-black bg-gray-50 flex justify-between items-center"><h2 className="font-serif text-xl font-bold text-black">Jurnal Transaksi</h2><button onClick={() => openTransactionModal()} className="bg-black text-white px-3 py-1 font-serif text-xs hover:bg-gray-800 shadow-sm flex items-center gap-2"><Plus size={14} /> Data Baru</button></div><div className="overflow-x-auto w-full"><table className="w-full text-left min-w-[900px]"><thead className="bg-gray-100 text-black font-serif text-sm uppercase tracking-wider"><tr><th className="px-6 py-4 border-b-2 border-gray-200">Nama Transaksi</th><th className="px-6 py-4 border-b-2 border-gray-200">Aplikasi</th><th className="px-6 py-4 border-b-2 border-gray-200">Durasi</th><th className="px-6 py-4 border-b-2 border-gray-200">Kontak</th><th className="px-6 py-4 border-b-2 border-gray-200">Bonus</th><th className="px-6 py-4 border-b-2 border-gray-200">Status</th><th className="px-6 py-4 border-b-2 border-gray-200">Aksi</th></tr></thead><tbody className="divide-y divide-gray-100 text-sm">{transactions.map((t) => (<tr key={t.id} className="hover:bg-gray-50"><td className="px-6 py-4 font-serif font-medium text-black">{t.name}</td><td className="px-6 py-4 font-serif text-gray-600">{t.app}</td><td className="px-6 py-4"><TimeDisplay targetDate={t.targetDate} status={t.status} /></td><td className="px-6 py-4 font-mono text-xs text-gray-500">{t.phone}<br/>{t.email}</td><td className="px-6 py-4 font-serif text-gray-600 italic">{t.bonus}</td><td className="px-6 py-4"><select value={t.status} onChange={(e) => handleStatusChange(t, e.target.value)} className="bg-transparent text-xs font-serif uppercase border border-gray-300 py-1 px-2 cursor-pointer hover:bg-white w-full"><option value="Aktif">Aktif</option><option value="Perbaikan">Perbaikan</option><option value="Mati">Mati</option><option value="Planning">Planning</option></select></td><td className="px-6 py-4 flex gap-2"><button onClick={() => openTransactionModal(t)} className="text-blue-500 hover:text-blue-700"><Pencil size={16}/></button><button onClick={() => handleDeleteTransaction(t.firebaseId)} className="text-red-500 hover:text-red-700"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div><Modal isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} title={editingId ? "Edit Transaksi" : "Input Transaksi"}><div className="space-y-4 font-serif"><input type="text" placeholder="Nama Item" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none" value={newTransaction.name} onChange={e => setNewTransaction({...newTransaction, name: e.target.value})} /><div className="grid grid-cols-2 gap-4"><input type="text" placeholder="Aplikasi" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none" value={newTransaction.app} onChange={e => setNewTransaction({...newTransaction, app: e.target.value})} /><input type="number" placeholder="Durasi" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none" value={newTransaction.durationDays} onChange={e => setNewTransaction({...newTransaction, durationDays: e.target.value})} /></div><div className="grid grid-cols-2 gap-4"><input type="text" placeholder="No. HP" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none" value={newTransaction.phone} onChange={e => setNewTransaction({...newTransaction, phone: e.target.value})} /><input type="text" placeholder="Email" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none" value={newTransaction.email} onChange={e => setNewTransaction({...newTransaction, email: e.target.value})} /></div><input type="text" placeholder="Bonus" className="w-full border-2 border-gray-300 p-2 focus:border-black outline-none" value={newTransaction.bonus} onChange={e => setNewTransaction({...newTransaction, bonus: e.target.value})} /><button onClick={handleSaveTransaction} className="w-full bg-black text-white py-3 font-bold hover:bg-gray-800">{editingId ? "UPDATE" : "SIMPAN"}</button></div></Modal></div>}
@@ -412,72 +480,35 @@ export default function App() {
         <div className="min-h-screen w-full bg-white text-black font-serif pb-20 overflow-y-auto">
            {/* HEADER */}
            <div className="border-b-4 border-black py-4 px-4 bg-white sticky top-0 z-50">
-              <div className="max-w-5xl mx-auto flex justify-between items-center">
-                 <div>
-                    <h1 className="text-2xl md:text-3xl font-black tracking-tighter uppercase cursor-pointer" onClick={() => setPublicTab('beranda')}>TOKO</h1>
-                 </div>
+              <div className="max-w-5xl mx-auto flex justify-between items-center relative">
+                 <div><h1 className="text-2xl md:text-3xl font-black tracking-tighter uppercase cursor-pointer" onClick={() => setPublicTab('beranda')}>TOKO</h1></div>
+                 <div className="hidden md:flex gap-6 text-xs font-bold uppercase tracking-widest">{['beranda', 'informasi', 'produk', 'kontak', 'transaksi', 'ulasan'].map((tab) => (<button key={tab} onClick={() => setPublicTab(tab)} className={`${publicTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:text-black'} px-3 py-1 transition-colors`}>{tab}</button>))}</div>
+                 <div className="flex items-center gap-4"><button onClick={() => setView('admin')} className="text-[10px] font-mono text-gray-400 hover:text-black underline hidden md:block">[Ketua]</button><button className="md:hidden" onClick={() => setIsPublicMenuOpen(!isPublicMenuOpen)}>{isPublicMenuOpen ? <X /> : <Menu />}</button></div>
                  
-                 {/* Desktop Nav */}
-                 <div className="hidden md:flex gap-6 text-xs font-bold uppercase tracking-widest">
-                    {['beranda', 'informasi', 'produk', 'kontak', 'transaksi', 'ulasan'].map((tab) => (
-                       <button 
-                          key={tab} 
-                          onClick={() => setPublicTab(tab)}
-                          className={`${publicTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:text-black'} px-3 py-1 transition-colors`}
-                       >
-                          {tab}
-                       </button>
-                    ))}
-                 </div>
-
-                 <div className="flex items-center gap-4">
-                    <button onClick={() => setView('admin')} className="text-[10px] font-mono text-gray-400 hover:text-black underline hidden md:block">[Ketua]</button>
-                    <button className="md:hidden" onClick={() => setIsPublicMenuOpen(!isPublicMenuOpen)}>
-                       {isPublicMenuOpen ? <X /> : <Menu />}
-                    </button>
-                 </div>
+                 {/* SYSTEM STATUS TRIGGER (CLEAN & FIXED) */}
+                 <button onClick={() => setIsStatusVisible(!isStatusVisible)} className="chevron-trigger">
+                    {isStatusVisible ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                 </button>
               </div>
+              {isPublicMenuOpen && <div className="md:hidden border-t-2 border-black mt-4 pt-4 flex flex-col gap-2 animate-in slide-in-from-top-2">{['beranda', 'informasi', 'produk', 'kontak', 'transaksi', 'ulasan'].map((tab) => (<button key={tab} onClick={() => { setPublicTab(tab); setIsPublicMenuOpen(false); }} className={`text-left px-2 py-2 text-sm font-bold uppercase ${publicTab === tab ? 'bg-black text-white' : 'text-gray-500'}`}>{tab}</button>))}</div>}
+           </div>
 
-              {/* Mobile Nav */}
-              {isPublicMenuOpen && (
-                 <div className="md:hidden border-t-2 border-black mt-4 pt-4 flex flex-col gap-2 animate-in slide-in-from-top-2">
-                    {['beranda', 'informasi', 'produk', 'kontak', 'transaksi', 'ulasan'].map((tab) => (
-                       <button 
-                          key={tab} 
-                          onClick={() => { setPublicTab(tab); setIsPublicMenuOpen(false); }}
-                          className={`text-left px-2 py-2 text-sm font-bold uppercase ${publicTab === tab ? 'bg-black text-white' : 'text-gray-500'}`}
-                       >
-                          {tab}
-                       </button>
-                    ))}
-                    <button onClick={() => setView('admin')} className="text-left px-2 py-2 text-xs font-mono text-gray-400 mt-2 border-t border-gray-100 pt-2">Login Ketua &rarr;</button>
-                 </div>
-              )}
+           {/* SYSTEM STATUS DRAWER */}
+           <div className={`status-drawer bg-white shadow-lg ${isStatusVisible ? 'status-open' : 'status-closed'}`}>
+               <div className="max-w-5xl mx-auto px-4 py-8 text-center border-b-2 border-gray-100">
+                   <span className="inline-block px-3 py-1 bg-black text-white text-xs font-mono mb-4">SISTEM STATUS</span>
+                   <div className={`text-5xl md:text-8xl font-black uppercase tracking-widest mb-2 ${globalStatus === 'Aktif' ? 'text-green-700' : globalStatus === 'Perbaikan' ? 'text-yellow-600' : 'text-red-700'}`}>{globalStatus}</div>
+                   <p className="text-gray-400 text-sm italic font-mono">Selalu update setiap Jamnya</p>
+               </div>
            </div>
            
            <div className="max-w-5xl mx-auto px-4 py-8">
-              
-              {/* TAB CONTENT: BERANDA */}
               {publicTab === 'beranda' && (
                   <div className="space-y-12 animate-in fade-in duration-300">
-                      <section className="text-center border-b-2 border-gray-100 pb-12">
-                        <span className="inline-block px-3 py-1 bg-black text-white text-xs font-mono mb-4">SISTEM STATUS</span>
-                        <div className={`text-5xl md:text-8xl font-black uppercase tracking-widest mb-2 ${globalStatus === 'Aktif' ? 'text-green-700' : globalStatus === 'Perbaikan' ? 'text-yellow-600' : 'text-red-700'}`}>{globalStatus}</div>
-                        <p className="text-gray-400 text-sm italic font-mono">Selalu update setiap Jamnya</p>
-                      </section>
-
-                      <div className="w-full overflow-hidden whitespace-nowrap bg-stone-100 py-4 -mx-4 md:-mx-0">
-                        <div className="inline-block animate-marquee">
-                            <span className="mx-12 font-black uppercase text-2xl tracking-widest text-stone-300">Awanku Digital</span>
-                            <span className="mx-12 font-black uppercase text-2xl tracking-widest text-black">TapPay MarketPlace</span>
-                            <span className="mx-12 font-black uppercase text-2xl tracking-widest text-stone-300">Awanku Digital</span>
-                            <span className="mx-12 font-black uppercase text-2xl tracking-widest text-black">TapPay MarketPlace</span>
-                            <span className="mx-12 font-black uppercase text-2xl tracking-widest text-stone-300">Awanku Digital</span>
-                            <span className="mx-12 font-black uppercase text-2xl tracking-widest text-black">TapPay MarketPlace</span>
-                        </div>
-                      </div>
-
-                      {/* SEARCH & BANNER (NEW) */}
+                      {/* MARQUEE */}
+                      <div className="w-full overflow-hidden whitespace-nowrap bg-stone-100 py-4 -mx-4 md:-mx-0 mt-6"><div className="inline-block animate-marquee"><span className="mx-12 font-black uppercase text-2xl tracking-widest text-stone-300">Awanku Digital</span><span className="mx-12 font-black uppercase text-2xl tracking-widest text-black">TapPay MarketPlace</span><span className="mx-12 font-black uppercase text-2xl tracking-widest text-stone-300">Awanku Digital</span><span className="mx-12 font-black uppercase text-2xl tracking-widest text-black">TapPay MarketPlace</span><span className="mx-12 font-black uppercase text-2xl tracking-widest text-stone-300">Awanku Digital</span><span className="mx-12 font-black uppercase text-2xl tracking-widest text-black">TapPay MarketPlace</span></div></div>
+                      
+                      {/* SEARCH & BANNER */}
                       <section className="space-y-6">
                          <form onSubmit={handleSearch} className="flex w-full border-2 border-black"><input type="text" placeholder="Cari produk (contoh: Netflix)..." className="flex-1 p-3 outline-none font-sans text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /><button type="submit" className="bg-black text-white px-4 hover:bg-gray-800"><Search size={20} /></button></form>
                          <BannerCarousel data={banners} />
@@ -517,7 +548,6 @@ export default function App() {
                   </div>
               )}
 
-              {/* TAB: KONTAK & KEGIATAN (NEW) */}
               {publicTab === 'kontak' && (
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                       <div className="grid md:grid-cols-2 gap-8 mb-12">
@@ -536,7 +566,7 @@ export default function App() {
                               <MapPin size={40} className="mb-4 text-black"/>
                               <h3 className="font-bold text-xl mb-2">Lokasi Kami</h3>
                               <p className="text-gray-600 text-sm">Jakarta, Indonesia</p>
-                              {/* <div className="w-full h-32 bg-gray-200 mt-6 flex items-center justify-center border border-gray-300 text-gray-400 text-xs italic">[Map Placeholder]</div> */}
+                              <div className="w-full h-32 bg-gray-200 mt-6 flex items-center justify-center border border-gray-300 text-gray-400 text-xs italic">[Map Placeholder]</div>
                           </div>
                       </div>
 
@@ -601,8 +631,8 @@ export default function App() {
                   <div className="bg-stone-50 p-6 md:p-10 mb-20 animate-in fade-in slide-in-from-bottom-4 duration-300">
                       <div className="text-center mb-8"><h2 className="text-2xl font-bold italic mb-2">SUARA PELANGGAN</h2><p className="text-sm text-gray-500 font-serif">Khusus untuk pelanggan setia Toko Awanku Digital.</p></div>
                       {!isCustomerVerified && (<div className="max-w-md mx-auto bg-white p-6 border-b-2 border-black text-center"><p className="text-sm font-bold mb-4">Masuk untuk Berkomentar</p><input type="email" placeholder="Masukkan Gmail kamu..." className="w-full border-b-2 border-gray-300 p-3 mb-4 text-center font-mono text-sm outline-none focus:border-black" value={commentEmail} onChange={(e) => setCommentEmail(e.target.value)} /><button onClick={handleVerifyCustomer} disabled={isCheckingEmail} className="w-full bg-black text-white py-3 font-bold uppercase tracking-widest hover:bg-gray-800 disabled:opacity-50 flex justify-center items-center gap-2">{isCheckingEmail ? <Loader2 className="animate-spin" size={16} /> : "Cek Data Pelanggan"}</button></div>)}
-                      {isCustomerVerified && (<div className="max-w-xl mx-auto mb-10"><div className="bg-white p-4 border-b-2 border-black"><div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2"><div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-600"><CheckCircle2 size={16} /></div><span className="text-xs font-mono text-green-700">Terverifikasi: {commentEmail}</span></div><textarea className="w-full h-24 border-b-2 border-gray-200 p-3 mb-3 text-sm focus:border-black outline-none resize-none" placeholder="Tulis ulasanmu disini..." value={commentText} onChange={(e) => setCommentText(e.target.value)}></textarea><div className="flex justify-between items-center"><label className="cursor-pointer bg-gray-100 px-3 py-2 rounded flex items-center gap-2 text-xs font-bold hover:bg-gray-200"><ImageIcon size={16} /> {commentImage ? "Ganti Foto" : "Upload Foto"} <input type="file" accept="image/*" className="hidden" onChange={handleCommentImage} /></label><button onClick={handlePostComment} className="bg-black text-white px-6 py-2 font-bold text-xs uppercase hover:bg-gray-800 flex items-center gap-2">Kirim <Send size={12} /></button></div>{commentImage && (<div className="mt-3 w-20 h-20 border border-gray-200 relative"><img src={commentImage} className="w-full h-full object-cover" /><button onClick={() => setCommentImage('')} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"><X size={12}/></button></div>)}</div></div>)}
-                      <div className="space-y-6 mt-8 max-w-2xl mx-auto">{comments.length === 0 ? <p className="text-center text-gray-400 text-sm italic">Belum ada komentar.</p> : comments.map((comment) => (<div key={comment.firebaseId} className="flex gap-4 border-b border-gray-200 pb-4"><div className="w-10 h-10 bg-black text-white flex items-center justify-center font-bold text-sm shrink-0 rounded-full">{comment.email.charAt(0).toUpperCase()}</div><div className="flex-1"><div className="flex justify-between items-start mb-1"><span className="font-bold text-sm">{comment.email.split('@')[0]}</span><span className="text-[10px] text-gray-400">{comment.date}</span></div><p className="text-sm text-gray-600 leading-relaxed mb-2 whitespace-pre-wrap">{comment.text}</p>{comment.image && <img src={comment.image} className="h-20 w-auto border border-gray-100 cursor-zoom-in hover:opacity-90 rounded" onClick={() => setPreviewImage(comment.image)} />}</div></div>))}</div>
+                      
+                      <div className="space-y-6 mt-8 max-w-2xl mx-auto">{comments.length === 0 ? <p className="text-center text-gray-400 text-sm italic">Belum ada komentar.</p> : comments.map((comment) => (<div key={comment.firebaseId} className="flex gap-4 border-b border-gray-200 pb-4"><div className="w-10 h-10 bg-black text-white flex items-center justify-center font-bold text-sm shrink-0 rounded-full">{comment.email.charAt(0).toUpperCase()}</div><div className="flex-1"><div className="flex justify-between items-start mb-1"><span className="font-bold text-sm">{comment.email.split('@')[0]}</span><div className="flex gap-0.5">{[...Array(5)].map((_,i) => <Star key={i} size={10} fill={i < comment.rating ? "black" : "none"} className="text-black" />)}</div></div><p className="text-sm text-gray-600 leading-relaxed mb-2 whitespace-pre-wrap">{comment.text}</p>{comment.image && <img src={comment.image} className="h-20 w-auto border border-gray-100 cursor-zoom-in hover:opacity-90 rounded" onClick={() => setPreviewImage(comment.image)} />}<span className="text-[10px] text-gray-400 mt-1 block">{comment.date}</span></div></div>))}</div>
                   </div>
               )}
               
@@ -617,6 +647,40 @@ export default function App() {
               {selectedProduct && <div className="font-serif"><div className="border-2 border-black p-6 bg-white relative"><div className="flex items-center gap-4 mb-6 border-b border-gray-100 pb-4"><div className="w-16 h-16 bg-gray-100 flex items-center justify-center border border-gray-200"><ShoppingBag size={24}/></div><div><h2 className="text-xl font-bold">{selectedProduct.name}</h2><p className="text-sm text-gray-500 font-mono">{selectedProduct.app}</p></div></div><div className="bg-gray-50 p-4 border border-gray-100 mb-6 text-sm text-gray-600 leading-relaxed italic whitespace-pre-wrap">{selectedProduct.desc}</div><div className="flex justify-between items-center"><div><p className="text-xs text-gray-400 uppercase">Harga</p><p className="text-2xl font-mono font-bold">{selectedProduct.price}</p></div><a href={`https://wa.me/6281319865384?text=${encodeURIComponent(`Halo Toko, saya mau beli Produk ${selectedProduct.name} ready gak??`)}`} target="_blank" rel="noopener noreferrer" className="bg-black text-white px-6 py-3 font-bold uppercase text-sm hover:bg-gray-800 flex items-center gap-2"><Phone size={16} /> Hubungi Ketua</a></div></div></div>}
           </Modal>
           {previewImage && <div className="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out" onClick={() => setPreviewImage(null)}><img src={previewImage} className="max-w-full max-h-screen object-contain" /></div>}
+          
+          {/* MODAL KOMENTAR (POPUP) */}
+          <Modal isOpen={isCommentModalOpen} onClose={() => setIsCommentModalOpen(false)} title="Tulis Ulasan">
+              <div className="font-serif space-y-6">
+                  <div className="text-center">
+                      <p className="text-sm font-bold mb-2">Beri Rating</p>
+                      <div className="flex justify-center gap-2">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                              <Star 
+                                  key={star} 
+                                  size={32} 
+                                  fill={star <= commentRating ? "gold" : "none"} 
+                                  className={`cursor-pointer transition-colors ${star <= commentRating ? "text-yellow-500" : "text-gray-300"}`}
+                                  onClick={() => setCommentRating(star)}
+                              />
+                          ))}
+                      </div>
+                  </div>
+                  <div>
+                      <label className="block text-xs font-bold uppercase mb-2">Pesan Ulasan</label>
+                      <textarea 
+                          className="w-full h-32 border-2 border-gray-300 p-3 text-sm focus:border-black outline-none resize-none" 
+                          placeholder="Ceritakan pengalamanmu..." 
+                          value={commentText} 
+                          onChange={(e) => setCommentText(e.target.value)}
+                      ></textarea>
+                  </div>
+                  <div className="border-2 border-dashed border-gray-300 p-4 text-center cursor-pointer hover:bg-gray-50 relative transition-colors">
+                      <input type="file" accept="image/*" onChange={handleCommentImage} className="absolute inset-0 opacity-0 cursor-pointer" />
+                      {commentImage ? <div className="relative"><img src={commentImage} className="h-20 mx-auto object-cover" /><p className="text-xs text-green-600 mt-2 font-bold">Gambar Terpilih</p></div> : <div className="flex flex-col items-center text-gray-400"><ImageIcon size={20} /><span className="text-xs mt-1">Upload Foto (Opsional)</span></div>}
+                  </div>
+                  <button onClick={handlePostComment} className="w-full bg-black text-white py-4 font-bold hover:bg-gray-800 uppercase tracking-widest text-sm shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5">Kirim Ulasan</button>
+              </div>
+          </Modal>
         </div>
       )}
       {isMenuOpen && <div className="fixed inset-0 bg-black/80 z-30 md:hidden" onClick={() => setIsMenuOpen(false)}></div>}
