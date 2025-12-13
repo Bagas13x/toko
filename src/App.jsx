@@ -536,7 +536,7 @@ export default function App() {
                               <MapPin size={40} className="mb-4 text-black"/>
                               <h3 className="font-bold text-xl mb-2">Lokasi Kami</h3>
                               <p className="text-gray-600 text-sm">Jakarta, Indonesia</p>
-                              <div className="w-full h-32 bg-gray-200 mt-6 flex items-center justify-center border border-gray-300 text-gray-400 text-xs italic">[Map Placeholder]</div>
+                              {/* <div className="w-full h-32 bg-gray-200 mt-6 flex items-center justify-center border border-gray-300 text-gray-400 text-xs italic">[Map Placeholder]</div> */}
                           </div>
                       </div>
 
