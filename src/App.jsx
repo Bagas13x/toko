@@ -357,7 +357,7 @@ export default function App() {
 
   // --- RENDERING ---
 
-  if (isLoading) return <div className="min-h-screen flex flex-col items-center justify-center bg-white"><Loader2 className="animate-spin mb-4" size={40} /><p className="font-serif text-sm tracking-widest uppercase">Memuat Data...</p></div>;
+  if (isLoading) return <div className="min-h-screen flex flex-col items-center justify-center bg-white"><Loader2 className="animate-spin mb-4" size={40} /><p className="font-serif text-sm tracking-widest uppercase">Sebentar ketua...</p></div>;
 
   if (view === 'admin' && !isAdminLoggedIn) return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4 font-serif text-black">
