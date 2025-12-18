@@ -335,7 +335,7 @@ const StorePage = ({
                 {portraitBanners.map((pb, i) => (
                     <div key={i} className="relative overflow-hidden group border border-black bg-zinc-100">
                         {pb.type === 'video' ? <video src={pb.image} autoPlay muted loop playsInline className="video-portrait" /> : <img src={pb.image} className="video-portrait" alt="Clip"/>}
-                        <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-widest border border-black">CLIP</div>
+                        <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-widest border border-black">AD</div>
                     </div>
                 ))}
             </div>
