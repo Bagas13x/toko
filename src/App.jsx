@@ -214,7 +214,7 @@ const LandingPage = ({ setView, catalog, t }) => (
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mt-8 md:mt-12 gap-6 md:gap-8 fade-up" style={{animationDelay: '0.4s'}}>
         <p className="max-w-xl text-lg md:text-2xl leading-relaxed font-semibold">{t.philosophy}</p>
         <button onClick={() => setView('store')} className="md:hidden border-2 border-black px-8 py-3 font-heading font-bold text-lg hover:bg-black hover:text-white transition-all uppercase">{t.explore} STORE</button>
-        <div className="text-left md:text-right font-mono text-[10px] tracking-widest text-gray-400">JAKARTA, ID • EST. 2020</div>
+        {/* <div className="text-left md:text-right font-mono text-[10px] tracking-widest text-gray-400">JAKARTA, ID • EST. 2020</div> */}
       </div>
     </section>
 
