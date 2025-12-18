@@ -49,7 +49,7 @@ const translations = {
   customer: "Pelanggan",
   nonCustomer: "Tamu",
   verify: "Verifikasi Email",
-  verifyBtn: "Ndelok",
+  verifyBtn: "Cek",
   guestBtn: "Nulis Dadi Tamu",
   pending: "Ngenteni Admin",
   postReview: "Kirim Review",
@@ -214,7 +214,7 @@ const LandingPage = ({ setView, catalog, t }) => (
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mt-8 md:mt-12 gap-6 md:gap-8 fade-up" style={{animationDelay: '0.4s'}}>
         <p className="max-w-xl text-lg md:text-2xl leading-relaxed font-semibold">{t.philosophy}</p>
         <button onClick={() => setView('store')} className="md:hidden border-2 border-black px-8 py-3 font-heading font-bold text-lg hover:bg-black hover:text-white transition-all uppercase">{t.explore} STORE</button>
-        {/* <div className="text-left md:text-right font-mono text-[10px] tracking-widest text-gray-400">JAKARTA, ID • EST. 2020</div> */}
+        <div className="text-left md:text-right font-mono text-[10px] tracking-widest text-gray-400">JAKARTA, ID • EST. 2020</div>
       </div>
     </section>
 
@@ -317,7 +317,7 @@ const StorePage = ({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-2 border-black pb-4 mb-8 md:mb-12 gap-4">
           <h1 className="text-5xl md:text-8xl font-heading uppercase tracking-tighter">{t.store}</h1>
           <div className="flex gap-4 md:gap-8 overflow-x-auto pb-2 w-full md:w-auto no-scrollbar">
-            {['home', 'catalog', 'Information', 'Transaction', 'reviews'].map(tab => (
+            {['home', 'catalog', 'journal', 'status', 'reviews'].map(tab => (
               <button key={tab} onClick={() => setStoreTab(tab)} className={`tab-btn whitespace-nowrap cursor-hover ${storeTab === tab ? 'active' : ''}`}>{t[tab] || tab.toUpperCase()}</button>
             ))}
           </div>
@@ -335,7 +335,7 @@ const StorePage = ({
                 {portraitBanners.map((pb, i) => (
                     <div key={i} className="relative overflow-hidden group border border-black bg-zinc-100">
                         {pb.type === 'video' ? <video src={pb.image} autoPlay muted loop playsInline className="video-portrait" /> : <img src={pb.image} className="video-portrait" alt="Clip"/>}
-                        <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-widest border border-black">AD</div>
+                        <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-widest border border-black">CLIP</div>
                     </div>
                 ))}
             </div>
@@ -405,7 +405,7 @@ const StorePage = ({
         {storeTab === 'status' && (
            <div className="fade-up border-2 border-black mx-2">
               <div className="bg-black text-white p-6 md:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h2 className="font-heading text-3xl md:text-4xl tracking-tighter">Live</h2>
+                <h2 className="font-heading text-3xl md:text-4xl tracking-tighter">LIVE MONITOR</h2>
                 <div className="flex items-center gap-3">
                    <div className={`w-3 h-3 rounded-full animate-pulse ${globalStatus === 'Aktif' ? 'bg-green-500' : 'bg-red-500'}`}></div>
                    <span className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] font-bold">{String(globalStatus)}</span>
@@ -416,9 +416,9 @@ const StorePage = ({
                    <thead>
                      <tr className="bg-zinc-100 border-b border-black font-bold uppercase tracking-tighter">
                         <th className="p-4 md:p-6">PRODUK</th>
-                        <th className="p-4 md:p-6">PREMIUM</th>
-                        <th className="p-4 md:p-6">DURASI</th>
-                        <th className="p-4 md:p-6 text-right">SISTEM</th>
+                        <th className="p-4 md:p-6">PLATFORM</th>
+                        <th className="p-4 md:p-6">REMAINING</th>
+                        <th className="p-4 md:p-6 text-right">SYSTEM</th>
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-zinc-200 uppercase font-bold">
@@ -445,7 +445,7 @@ const StorePage = ({
         {/* FIX: REVIEWS PAGE */}
         {storeTab === 'reviews' && (
            <div className="fade-up max-w-2xl mx-auto py-20 px-2">
-              <h2 className="text-7xl font-heading text-center mb-16 uppercase tracking-tighter">Customers</h2>
+              <h2 className="text-7xl font-heading text-center mb-16 uppercase tracking-tighter">Vox Populi</h2>
               
               {!reviewType ? (
                  <div className="border-2 border-black p-8 md:p-12 text-center bg-white shadow-[15px_15px_0_#ea281e]">
@@ -592,7 +592,7 @@ const AdminDashboard = ({
 
             {/* DESKTOP SIDEBAR */}
             <aside className="w-64 border-r-2 border-black p-8 hidden md:block sticky top-24 h-[calc(100vh-6rem)] shrink-0">
-                <div className="flex items-center gap-2 mb-10"><div className="w-2 h-2 bg-[#ea281e] rounded-full"></div><h2 className="font-heading text-xl uppercase tracking-tighter">Admin</h2></div>
+                <div className="flex items-center gap-2 mb-10"><div className="w-2 h-2 bg-[#ea281e] rounded-full"></div><h2 className="font-heading text-xl uppercase tracking-tighter">Chief Panel</h2></div>
                 <nav className="space-y-1">
                     {tabs.map(tab => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left font-heading text-lg p-3 border border-black transition-all mb-2 ${activeTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:bg-zinc-50'}`}>{tab}</button>
@@ -943,7 +943,7 @@ export default function App() {
             <nav className="flex flex-col items-start">
                 <button onClick={() => {setView('landing'); setIsMenuOpen(false);}} className="menu-link">{t.home}</button>
                 <button onClick={() => {setView('store'); setIsMenuOpen(false);}} className="menu-link">{t.store}</button>
-                <button onClick={() => {setView('admin'); setIsMenuOpen(false);}} className="menu-link uppercase">{t.chief}</button>
+                <button onClick={() => {setView('admin'); setIsMenuOpen(false);}} className="menu-link uppercase">{t.chief} PANEL</button>
             </nav>
         </div>
 
