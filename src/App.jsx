@@ -309,7 +309,7 @@ const StorePage = ({
   );
 
   const portraitBanners = (banners || []).filter(b => b.orientation === 'portrait').slice(0, 2);
-  const approvedComments = (comments || []).filter(c => c.status === 'approved');
+const landscapeBanners = (banners || []).filter(b => b.orientation === 'landscape');
 
   return (
     <div className="min-h-screen bg-white pt-24 md:pt-32 pb-20">
@@ -328,39 +328,49 @@ const StorePage = ({
           <input type="text" placeholder={t.search} className="w-full border-b border-gray-300 py-4 md:py-6 pl-10 md:pl-12 outline-none font-heading text-lg md:text-2xl uppercase focus:border-black transition-colors bg-transparent" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
         </div>
 
-        {storeTab === 'home' && (
-          <div className="fade-up space-y-16 md:space-y-24 px-2">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                {/* <div className="col-span-2 flex items-center"><h3 className="text-3xl md:text-5xl font-heading leading-tight tracking-tighter italic"><br/>Promoted.</h3></div> */}
-                {portraitBanners.map((pb, i) => (
-                    <div key={i} className="relative overflow-hidden group border border-black bg-zinc-100">
-                        {pb.type === 'video' ? <video src={pb.image} autoPlay muted loop playsInline className="video-portrait" /> : <img src={pb.image} className="video-portrait" alt="Clip"/>}
-                        <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-widest border border-black">CLIP</div>
-                    </div>
-                ))}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
-              {catalog.filter(i => i.isBestSeller).map(item => (
-                <div key={item.firebaseId} className="store-card p-0 cursor-hover group" onClick={() => setSelectedProduct(item)}>
-                  <div className="aspect-square bg-zinc-100 border-b border-zinc-200 overflow-hidden relative">
-                    {item.image && <img src={item.image} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" alt={item.name}/>}
-                  </div>
-                  <div className="p-6 md:p-8">
-                    <div className="flex justify-between mb-4">
-                      <h4 className="font-heading text-2xl md:text-4xl group-hover:text-[#ea281e] transition-colors tracking-tighter">{item.name}</h4>
-                      <Star size={20} fill="#ea281e" className="text-[#ea281e]"/>
-                    </div>
-                    <div className="flex justify-between items-center font-bold text-xl md:text-2xl italic uppercase tracking-tighter">
-                        <span>{item.price}</span>
-                        <ArrowRight />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+      {storeTab === 'home' && (
+  <div className="fade-up space-y-10 md:space-y-16 px-2">
+    
+    {/* --- 1. BAGIAN BANNER LANDSCAPE (IKLAN LEBAR) --- */}
+    {banners.filter(b => b.orientation === 'landscape').length > 0 && (
+      <div className="w-full mb-8">
+        {banners.filter(b => b.orientation === 'landscape').slice(0, 1).map((lb, i) => (
+          <div key={i} className="relative w-full aspect-video md:aspect-[21/9] border-2 border-black overflow-hidden bg-zinc-100 shadow-[8px_8px_0_black]">
+            {lb.type === 'video' ? (
+              <video src={lb.image} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+            ) : (
+              <img src={lb.image} className="w-full h-full object-cover" alt="Hero Ads" />
+            )}
+            <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em]">PROMOTED</div>
           </div>
+        ))}
+      </div>
+    )}
+
+       {/* --- 2. BAGIAN BANNER PORTRAIT (CLIP/STORY) --- */}
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+      {/* Mengambil semua banner portrait yang ada di database */}
+      {banners.filter(b => b.orientation === 'portrait').map((pb, i) => (
+        <div key={pb.firebaseId || i} className="relative overflow-hidden group border-2 border-black bg-zinc-100 aspect-[9/16]">
+          {pb.type === 'video' ? (
+            <video src={pb.image} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+          ) : (
+            <img src={pb.image} className="w-full h-full object-cover" alt="Clip" />
+          )}
+          <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-widest border border-black text-black">
+            CLIP
+          </div>
+          {/* Judul Banner jika ingin dimunculkan */}
+          <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+            <p className="text-white text-[10px] font-bold uppercase truncate">{pb.title}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+          </div>
+          
         )}
+        
 
         {storeTab === 'catalog' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 md:gap-12 fade-up px-2">
@@ -863,7 +873,15 @@ export default function App() {
     onSnapshot(query(collection(db, "catalog"), orderBy("id", "desc")), (s) => setCatalog(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
     onSnapshot(query(collection(db, "informations"), orderBy("id", "desc")), (s) => setInformations(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
     onSnapshot(query(collection(db, "transactions"), orderBy("id", "desc")), (s) => setTransactions(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
-    onSnapshot(query(collection(db, "banners"), orderBy("id", "desc")), (s) => setBanners(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
+   onSnapshot(query(collection(db, "banners"), orderBy("id", "desc")), (s) => {
+  const bannerList = s.docs.map(d => ({
+    ...d.data(),
+    firebaseId: d.id
+  }));
+  setBanners(bannerList);
+}, (error) => {
+  console.error("Gagal ambil banner:", error);
+});
     onSnapshot(query(collection(db, "activities"), orderBy("id", "desc")), (s) => setActivities(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
     onSnapshot(query(collection(db, "comments"), orderBy("timestamp", "desc")), (s) => setComments(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
   };
@@ -907,11 +925,30 @@ export default function App() {
     else await addDoc(collection(db, "informations"), payload);
   };
 
-  const handleSaveBanner = async (data, editId) => {
-    const payload = { title: data.title, image: data.imageUrl || '', type: data.type, orientation: data.orientation, id: editId ? data.id : Date.now() };
-    if(editId) await updateDoc(doc(db, "banners", editId), payload);
-    else await addDoc(collection(db, "banners"), payload);
-  };
+ const handleSaveBanner = async (data, editId) => {
+  try {
+    const payload = {
+      title: data.title || "Untitled Ads",
+      image: data.imageUrl || '', // Pastikan Base64 tidak terlalu besar (>1MB)
+      type: data.type || 'image',
+      orientation: data.orientation || 'landscape',
+      id: editId ? data.id : Date.now(), // ID unik untuk sorting
+      createdAt: new Date() // Tambahan untuk backup sorting
+    };
+
+    if (editId) {
+      await updateDoc(doc(db, "banners", editId), payload);
+      console.log("Banner Updated");
+    } else {
+      await addDoc(collection(db, "banners"), payload);
+      console.log("Banner Created");
+    }
+    setIsModalOpen(false); // Tutup modal setelah sukses
+  } catch (error) {
+    console.error("Error saving banner: ", error);
+    alert("Gagal simpan! Cek apakah ukuran gambar terlalu besar.");
+  }
+};
 
   const handleSaveTransaction = async (data, editId) => {
     let payload = { name: data.name, app: data.app, email: data.email.toLowerCase(), status: 'Aktif' };
