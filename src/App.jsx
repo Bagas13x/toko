@@ -331,7 +331,7 @@ const StorePage = ({
         {storeTab === 'home' && (
           <div className="fade-up space-y-16 md:space-y-24 px-2">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                <div className="col-span-2 flex items-center"><h3 className="text-3xl md:text-5xl font-heading leading-tight tracking-tighter italic">LATEST<br/>PREVIEWS.</h3></div>
+                <div className="col-span-2 flex items-center"><h3 className="text-3xl md:text-5xl font-heading leading-tight tracking-tighter italic"><br/>Promoted.</h3></div>
                 {portraitBanners.map((pb, i) => (
                     <div key={i} className="relative overflow-hidden group border border-black bg-zinc-100">
                         {pb.type === 'video' ? <video src={pb.image} autoPlay muted loop playsInline className="video-portrait" /> : <img src={pb.image} className="video-portrait" alt="Clip"/>}
@@ -405,7 +405,7 @@ const StorePage = ({
         {storeTab === 'status' && (
            <div className="fade-up border-2 border-black mx-2">
               <div className="bg-black text-white p-6 md:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h2 className="font-heading text-3xl md:text-4xl tracking-tighter">LIVE MONITOR</h2>
+                <h2 className="font-heading text-3xl md:text-4xl tracking-tighter">LIVE</h2>
                 <div className="flex items-center gap-3">
                    <div className={`w-3 h-3 rounded-full animate-pulse ${globalStatus === 'Aktif' ? 'bg-green-500' : 'bg-red-500'}`}></div>
                    <span className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] font-bold">{String(globalStatus)}</span>
@@ -445,7 +445,7 @@ const StorePage = ({
         {/* FIX: REVIEWS PAGE */}
         {storeTab === 'reviews' && (
            <div className="fade-up max-w-2xl mx-auto py-20 px-2">
-              <h2 className="text-7xl font-heading text-center mb-16 uppercase tracking-tighter">Vox Populi</h2>
+              <h2 className="text-7xl font-heading text-center mb-16 uppercase tracking-tighter">Costumers</h2>
               
               {!reviewType ? (
                  <div className="border-2 border-black p-8 md:p-12 text-center bg-white shadow-[15px_15px_0_#ea281e]">
