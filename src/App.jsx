@@ -331,7 +331,7 @@ const StorePage = ({
         {storeTab === 'home' && (
           <div className="fade-up space-y-16 md:space-y-24 px-2">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                <div className="col-span-2 flex items-center"><h3 className="text-3xl md:text-5xl font-heading leading-tight tracking-tighter italic">LATEST<br/>PREVIEWS.</h3></div>
+                <div className="col-span-2 flex items-center"><h3 className="text-3xl md:text-5xl font-heading leading-tight tracking-tighter italic">Promoted<br/></h3></div>
                 {portraitBanners.map((pb, i) => (
                     <div key={i} className="relative overflow-hidden group border border-black bg-zinc-100">
                         {pb.type === 'video' ? <video src={pb.image} autoPlay muted loop playsInline className="video-portrait" /> : <img src={pb.image} className="video-portrait" alt="Clip"/>}
