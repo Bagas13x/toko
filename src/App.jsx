@@ -3,7 +3,7 @@ import bagasImg from "./assets/bagas.jpg";
 import { initializeApp } from "firebase/app";
 import { 
   getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, 
-  onSnapshot, query, orderBy, setDoc, where, getDocs 
+  onSnapshot, query, orderBy, setDoc, where, getDocs, increment
 } from "firebase/firestore";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { 
@@ -11,14 +11,13 @@ import {
   Check, AlertTriangle, XCircle, Search, Star, Bell, AlertCircle, 
   Send, Loader2, PauseCircle, Camera, FileText, Layout, LayoutTemplate, 
   List, Upload, Trash2, Pencil, LogOut, Lock, ChevronDown, ChevronUp,
-  Image as ImageIcon, CheckCircle2, Activity, MessageSquare, ExternalLink, Play, Disc, Globe,
-  Music, Volume2, VolumeX
+  Image as ImageIcon, CheckCircle2, Activity, MessageSquare, ExternalLink, 
+  Play, Disc, Globe, Music, Volume2, VolumeX, BarChart, Vote, Users
 } from 'lucide-react';
 import musicFile from "./assets/music.mp3";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // ============================================================
-// 1. KONFIGURASI FIREBASE (STABLE)
+// 1. KONFIGURASI FIREBASE
 // ============================================================
 const firebaseConfig = {
   apiKey: "AIzaSyDep19oGqL8o0_LUZNbhLuRgCgyeLHdYQM",
@@ -33,10 +32,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-const storage = getStorage(app);
 
 // ============================================================
-// 2. TRANSLATIONS (JAWA, ID, EN)
+// 2. TRANSLATIONS
 // ============================================================
 const translations = {
   jawa: {
@@ -46,7 +44,8 @@ const translations = {
     journal: "Jurnal", status: "Status", reviews: "Review", customer: "Pelanggan",
     nonCustomer: "Tamu", verify: "Verifikasi Email", verifyBtn: "Cek",
     guestBtn: "Nulis Dadi Tamu", pending: "Ngenteni Admin", postReview: "Kirim Review",
-    logout: "Metu", ProduksTitle: "JOSS", ProduksDesc: "Pilihan Paling Joss Ning Kene"
+    logout: "Metu", ProduksTitle: "JOSS", ProduksDesc: "Pilihan Paling Joss Ning Kene",
+    polls: "Polling", vote: "Milih", results: "Hasil", totalVotes: "Total Swara"
   },
   id: {
     home: "Beranda", store: "Toko", chief: "Admin", explore: "Produk", 
@@ -55,7 +54,8 @@ const translations = {
     journal: "Jurnal", status: "Status", reviews: "Ulasan", customer: "Pelanggan",
     nonCustomer: "Tamu", verify: "Verifikasi Email", verifyBtn: "Cek",
     guestBtn: "Tulis Sebagai Tamu", pending: "Menunggu Admin", postReview: "Kirim Ulasan",
-    logout: "Keluar", ProduksTitle: "TERBAIK", ProduksDesc: "Pilihan Produk Terbaik Kami"
+    logout: "Keluar", ProduksTitle: "TERBAIK", ProduksDesc: "Pilihan Produk Terbaik Kami",
+    polls: "Polling", vote: "Vote", results: "Hasil", totalVotes: "Total Vote"
   },
   en: {
     home: "Home", store: "Store", chief: "Administrator", explore: "Products",
@@ -64,12 +64,13 @@ const translations = {
     journal: "Journal", status: "Status", reviews: "Reviews", customer: "Customer",
     nonCustomer: "Guest", verify: "Email Verification", verifyBtn: "Check",
     guestBtn: "Write as Guest", pending: "Pending Admin", postReview: "Submit Review",
-    logout: "Log Out", ProduksTitle: "BEST", ProduksDesc: "Our Best Product Selections"
+    logout: "Log Out", ProduksTitle: "BEST", ProduksDesc: "Our Best Product Selections",
+    polls: "Polls", vote: "Vote", results: "Results", totalVotes: "Total Votes"
   }
 };
 
 // ============================================================
-// 3. GLOBAL STYLES (CSS-IN-JS)
+// 3. GLOBAL STYLES
 // ============================================================
 const globalStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;700&family=Syne:wght@400;600;800&display=swap');
@@ -86,10 +87,10 @@ const globalStyles = `
   @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
   .menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: #000000; z-index: 500; transform: translateY(-100%); transition: transform 0.8s cubic-bezier(0.7, 0, 0.3, 1); display: flex; flex-direction: column; justify-content: center; padding: 2rem; }
   .menu-overlay.open { transform: translateY(0); }
-  .menu-link { font-family: 'Oswald', sans-serif; font-size: 12vw; md:font-size: 8vw; font-weight: 700; color: white; opacity: 0; transform: translateY(50px); transition: 0.5s; cursor: none; line-height: 1.1; text-transform: uppercase; }
+  .menu-link { font-family: 'Oswald', sans-serif; font-size: 12vw; font-weight: 700; color: white; opacity: 0; transform: translateY(50px); transition: 0.5s; cursor: none; line-height: 1.1; text-transform: uppercase; }
   .menu-overlay.open .menu-link { opacity: 1; transform: translateY(0); }
   .store-card { border: 1px solid #e5e5e5; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); background: white; }
-  .tab-btn { font-family: 'Oswald', sans-serif; font-size: 1rem; md:font-size: 1.2rem; font-weight: 500; padding-bottom: 0.5rem; color: #9ca3af; transition: 0.3s; text-transform: uppercase; }
+  .tab-btn { font-family: 'Oswald', sans-serif; font-size: 1rem; font-weight: 500; padding-bottom: 0.5rem; color: #9ca3af; transition: 0.3s; text-transform: uppercase; }
   .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--accent); }
   ::-webkit-scrollbar { height: 2px; width: 4px; }
   ::-webkit-scrollbar-thumb { background: black; }
@@ -103,7 +104,7 @@ const globalStyles = `
 `;
 
 // ============================================================
-// 4. UI UTILITIES (CURSOR, TIME, MODAL)
+// 4. UI UTILITIES
 // ============================================================
 const CustomCursor = () => {
   const cursorRef = useRef(null);
@@ -120,12 +121,13 @@ const CustomCursor = () => {
   return <div ref={cursorRef} className="custom-cursor" />;
 };
 
+// Komponen MusicPlayer Global
 const MusicPlayer = () => {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const audioRef = useRef(null);
 
   useEffect(() => {
-    // Auto play saat komponen dimount
+    // Inisialisasi audio saat komponen pertama kali dimuat
     if (audioRef.current) {
       audioRef.current.volume = 0.3;
       const playPromise = audioRef.current.play();
@@ -222,9 +224,7 @@ const TimeDisplay = ({ targetDate, status }) => {
 // 5. LANDING PAGE VIEW
 // ============================================================
 const LandingPage = ({ setView, catalog, t }) => (
-  <div className="w-full bg-white text-black relative">
-    <MusicPlayer />
-    
+  <div className="w-full bg-white text-black">
     <section className="h-screen flex flex-col justify-center px-6 md:px-12 pt-10 md:pt-20 relative overflow-hidden">
       <div className="flex items-center gap-4 fade-up" style={{animationDelay: '0.2s'}}>
           <h1 className="text-[20vw] md:text-[18vw] font-bold font-heading text-[#ea281e]">{t?.future || "TOKKO"}</h1>
@@ -279,25 +279,34 @@ const LandingPage = ({ setView, catalog, t }) => (
 );
 
 // ============================================================
-// 6. STORE PAGE VIEW (DENGAN FIX BANNER & REVIEW)
+// 6. STORE PAGE VIEW DENGAN BANNER & POLLING
 // ============================================================
 const StorePage = ({ 
   globalStatus, catalog, informations, transactions, banners, activities, comments,
   searchQuery, setSearchQuery, handleVerifyEmail, isEmailVerified, commentEmail, setCommentEmail,
-  handlePostComment, commentText, setCommentText, commentRating, setCommentRating, t, isVerifying, setReviewType, reviewType
+  handlePostComment, commentText, setCommentText, commentRating, setCommentRating, t, isVerifying, 
+  setReviewType, reviewType, polls, handleVote
 }) => {
   const [storeTab, setStoreTab] = useState('home');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedJournal, setSelectedJournal] = useState(null);
+  const [userVotes, setUserVotes] = useState(() => {
+    const saved = localStorage.getItem('tokko_votes');
+    return saved ? JSON.parse(saved) : {};
+  });
 
-  // Banner Persistence Fix
+  // Banner Persistence Fix - semua banner ditampilkan
   const landscapeBanners = useMemo(() => {
-    return (banners || []).filter(b => b.orientation === 'landscape').sort((a, b) => (b.id || 0) - (a.id || 0));
+    return (banners || []).filter(b => b.orientation === 'landscape' && b.type !== 'poll').sort((a, b) => (b.id || 0) - (a.id || 0));
   }, [banners]);
 
   const portraitBanners = useMemo(() => {
-    return (banners || []).filter(b => b.orientation === 'portrait').sort((a, b) => (b.id || 0) - (a.id || 0));
+    return (banners || []).filter(b => b.orientation === 'portrait' && b.type !== 'poll').sort((a, b) => (b.id || 0) - (a.id || 0));
   }, [banners]);
+
+  const activePolls = useMemo(() => {
+    return (polls || []).filter(p => p.active === true).sort((a, b) => (b.id || 0) - (a.id || 0));
+  }, [polls]);
 
   const journalEntries = useMemo(() => {
     const infos = (informations || []).map(i => ({ ...i, type: 'NEWS' }));
@@ -312,7 +321,21 @@ const StorePage = ({
 
   const approvedComments = useMemo(() => (comments || []).filter(c => c.status === 'approved'), [comments]);
 
-  // Handle banner click dengan link
+  const handlePollVote = async (pollId, optionIndex) => {
+    const hasVoted = userVotes[pollId];
+    if (hasVoted) {
+      alert("Anda sudah memilih di polling ini!");
+      return;
+    }
+
+    const success = await handleVote(pollId, optionIndex);
+    if (success) {
+      const newVotes = { ...userVotes, [pollId]: true };
+      setUserVotes(newVotes);
+      localStorage.setItem('tokko_votes', JSON.stringify(newVotes));
+    }
+  };
+
   const handleBannerClick = (banner) => {
     if (banner.link) {
       window.open(banner.link, '_blank', 'noopener,noreferrer');
@@ -345,15 +368,22 @@ const StorePage = ({
             {landscapeBanners.length > 0 && (
               <div className="w-full mb-8">
                 {landscapeBanners.map((lb, i) => (
-                  <div key={lb.firebaseId || i} className="relative w-full aspect-video md:aspect-[21/9] border-2 border-black overflow-hidden bg-zinc-100 shadow-[8px_8px_0_black] mb-6 cursor-pointer" onClick={() => handleBannerClick(lb)}>
+                  <div key={lb.firebaseId || i} className="relative w-full aspect-video md:aspect-[21/9] border-2 border-black overflow-hidden bg-zinc-100 shadow-[8px_8px_0_black] mb-6 cursor-pointer group" onClick={() => handleBannerClick(lb)}>
+                    {/* Tampilkan judul banner kecil di pojok kiri atas */}
+                    {lb.title && (
+                      <div className="absolute top-2 left-2 bg-black/80 text-white px-2 py-1 text-[10px] font-bold uppercase tracking-widest z-10">
+                        {lb.title}
+                      </div>
+                    )}
+                    
                     {lb.type === 'video' ? (
                       <video src={lb.image} autoPlay muted loop playsInline className="w-full h-full object-cover" />
                     ) : (
-                      <img src={lb.image} className="w-full h-full object-cover" alt="Ads" />
+                      <img src={lb.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Ads" />
                     )}
-                    <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em]">PROMOTED</div>
+                    
                     {lb.link && (
-                      <div className="absolute bottom-4 right-4 bg-white text-black px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-1">
+                      <div className="absolute bottom-2 right-2 bg-white text-black px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-1">
                         <ExternalLink size={10} /> LINK
                       </div>
                     )}
@@ -372,14 +402,88 @@ const StorePage = ({
                     ) : (
                       <img src={pb.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Clip" />
                     )}
-                    <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase border border-black text-black">CLIP</div>
+                    
+                    {/* Tampilkan judul banner kecil di bagian bawah */}
+                    {pb.title && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/80 text-white p-2 text-[10px] font-bold uppercase tracking-widest text-center">
+                        {pb.title}
+                      </div>
+                    )}
+                    
                     {pb.link && (
-                      <div className="absolute bottom-2 md:bottom-4 right-2 md:right-4 bg-black text-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-1">
-                        <ExternalLink size={8} />
+                      <div className="absolute top-2 right-2 bg-black text-white p-1 rounded-full">
+                        <ExternalLink size={10} />
                       </div>
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Polling Section */}
+            {activePolls.length > 0 && (
+              <div className="mt-12 pt-8 border-t border-black">
+                <div className="flex items-center gap-3 mb-6">
+                  <Vote className="text-[#ea281e]" size={28} />
+                  <h3 className="text-3xl font-heading uppercase tracking-tighter">{t?.polls || "POLLS"}</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {activePolls.map(poll => {
+                    const userHasVoted = userVotes[poll.firebaseId];
+                    const totalVotes = poll.options?.reduce((sum, opt) => sum + (opt.votes || 0), 0) || 0;
+                    
+                    return (
+                      <div key={poll.firebaseId} className="border-2 border-black p-6 bg-white shadow-[6px_6px_0_black]">
+                        <div className="flex justify-between items-start mb-4">
+                          <h4 className="font-heading text-2xl uppercase tracking-tighter flex-1">{poll.question}</h4>
+                          <div className="flex items-center gap-2 bg-black text-white px-3 py-1 text-[10px] font-bold uppercase">
+                            <Users size={12} />
+                            <span>{totalVotes} {t?.totalVotes || "VOTES"}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-3 mb-6">
+                          {poll.options?.map((option, index) => {
+                            const percentage = totalVotes > 0 ? Math.round((option.votes || 0) / totalVotes * 100) : 0;
+                            const isSelected = userHasVoted;
+                            
+                            return (
+                              <div key={index} className="relative">
+                                <button
+                                  onClick={() => !userHasVoted && handlePollVote(poll.firebaseId, index)}
+                                  disabled={userHasVoted}
+                                  className={`w-full text-left p-4 border-2 transition-all ${userHasVoted ? 'cursor-default' : 'cursor-hover hover:border-black hover:bg-black hover:text-white'} ${isSelected ? 'border-black bg-black text-white' : 'border-gray-300'}`}
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <span className="font-medium">{option.text}</span>
+                                    {userHasVoted && (
+                                      <span className="font-bold text-sm">{percentage}%</span>
+                                    )}
+                                  </div>
+                                  {userHasVoted && (
+                                    <div className="absolute bottom-0 left-0 h-1 bg-white" style={{ width: `${percentage}%` }}></div>
+                                  )}
+                                </button>
+                                {userHasVoted && (
+                                  <div className="absolute top-0 left-0 h-full bg-black/10" style={{ width: `${percentage}%` }}></div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        <div className="text-sm text-gray-500 flex justify-between items-center">
+                          {userHasVoted ? (
+                            <span className="text-green-600 font-bold">✓ {t?.results || "RESULTS"}</span>
+                          ) : (
+                            <span className="text-[#ea281e] font-bold">→ {t?.vote || "VOTE NOW"}</span>
+                          )}
+                          <span className="text-xs">{new Date(poll.createdAt?.seconds * 1000).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -570,7 +674,7 @@ const StorePage = ({
 };
 
 // ============================================================
-// 7. ADMIN LOGIN VIEW (STABLE)
+// 7. ADMIN LOGIN VIEW
 // ============================================================
 const AdminLoginView = ({ loginForm, setLoginForm, handleAdminLogin, setView, t }) => (
     <div className="min-h-screen admin-login-bg text-white flex flex-col p-6 md:p-20 relative overflow-hidden">
@@ -598,22 +702,23 @@ const AdminLoginView = ({ loginForm, setLoginForm, handleAdminLogin, setView, t 
 );
 
 // ============================================================
-// 8. ADMIN DASHBOARD VIEW (FIX MOBILE & BANNER)
+// 8. ADMIN DASHBOARD VIEW DENGAN BANNER & POLLING
 // ============================================================
 const AdminDashboard = ({ 
     activeTab, setActiveTab, globalStatus, setGlobalStatus, catalog, informations, banners, transactions, activities, comments,
-    handleSaveCatalog, handleSaveInfo, handleSaveBanner, handleSaveTransaction, handleDelete, isUploading, handleImageFile, handleLogout,
-    handleApproveReview, t
+    handleSaveCatalog, handleSaveInfo, handleSaveBanner, handleSavePoll, handleSaveTransaction, handleDelete, 
+    handleLogout, handleApproveReview, t, polls
 }) => {
     const [editingId, setEditingId] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const tabs = ['SYSTEM', 'CATALOG', 'NEWS', 'BANNERS', 'TRANSACTIONS', 'REVIEWS'];
+    const tabs = ['SYSTEM', 'CATALOG', 'NEWS', 'BANNERS', 'POLLS', 'TRANSACTIONS', 'REVIEWS'];
     
     // Forms
     const [catForm, setCatForm] = useState({ name: '', app: '', price: '', desc: '', isBestSeller: false, imageUrl: '' });
     const [infoForm, setInfoForm] = useState({ title: '', content: '', imageUrl: '', isFeatured: false });
     const [banForm, setBanForm] = useState({ title: '', desc: '', imageUrl: '', type: 'image', orientation: 'landscape', link: '' });
+    const [pollForm, setPollForm] = useState({ question: '', options: ['', ''], active: true });
     const [trxForm, setTrxForm] = useState({ name: '', app: '', durationDays: '', email: '' });
 
     const openEdit = (type, data) => {
@@ -621,8 +726,20 @@ const AdminDashboard = ({
         if(type === 'catalog') setCatForm({...data, imageUrl: data.image});
         if(type === 'news') setInfoForm({...data, imageUrl: data.image});
         if(type === 'banner') setBanForm({...data, imageUrl: data.image, link: data.link || ''});
+        if(type === 'poll') setPollForm({...data, options: data.options.map(opt => opt.text)});
         if(type === 'trx') setTrxForm(data);
         setIsModalOpen(true);
+    };
+
+    const addPollOption = () => {
+        setPollForm({...pollForm, options: [...pollForm.options, '']});
+    };
+
+    const removePollOption = (index) => {
+        if (pollForm.options.length > 2) {
+            const newOptions = pollForm.options.filter((_, i) => i !== index);
+            setPollForm({...pollForm, options: newOptions});
+        }
     };
 
     return (
@@ -778,7 +895,7 @@ const AdminDashboard = ({
                             </button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
-                            {(banners || []).map(b => (
+                            {(banners || []).filter(b => b.type !== 'poll').map(b => (
                                 <div key={b.firebaseId} className="border-2 border-black p-4 bg-white shadow-[4px_4px_0_black] md:shadow-[6px_6px_0_black] group">
                                     <div className="aspect-video bg-zinc-100 mb-4 overflow-hidden relative border border-black/10">
                                         {b.type === 'video' ? (
@@ -814,7 +931,63 @@ const AdminDashboard = ({
                     </div>
                 )}
 
-                {/* 5. TRANSACTIONS */}
+                {/* 5. POLLS */}
+                {activeTab === 'POLLS' && (
+                    <div className="fade-up">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-10 border-b-2 border-black pb-4 gap-4">
+                            <h2 className="text-4xl md:text-8xl font-heading tracking-tighter">POLLING</h2>
+                            <button onClick={() => { setEditingId(null); setPollForm({ question: '', options: ['', ''], active: true }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs cursor-hover hover:bg-[#ea281e] transition-colors">
+                                NEW POLL
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {(polls || []).map(poll => {
+                                const totalVotes = poll.options?.reduce((sum, opt) => sum + (opt.votes || 0), 0) || 0;
+                                return (
+                                    <div key={poll.firebaseId} className="border-2 border-black p-6 bg-white shadow-[4px_4px_0_black]">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <h3 className="font-heading text-xl uppercase tracking-tighter flex-1">{poll.question}</h3>
+                                            <span className={`px-2 py-1 text-[10px] font-bold uppercase ${poll.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                {poll.active ? 'ACTIVE' : 'INACTIVE'}
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="space-y-2 mb-4">
+                                            {poll.options?.map((option, idx) => {
+                                                const percentage = totalVotes > 0 ? Math.round((option.votes || 0) / totalVotes * 100) : 0;
+                                                return (
+                                                    <div key={idx} className="flex items-center justify-between">
+                                                        <span className="text-sm truncate">{option.text}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-bold">{option.votes || 0} votes</span>
+                                                            <span className="text-xs text-gray-500">{percentage}%</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        
+                                        <div className="flex justify-between items-center mt-4">
+                                            <div className="text-xs text-gray-500">
+                                                Total: <span className="font-bold">{totalVotes} votes</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => openEdit('poll', poll)} className="p-1.5 border border-black hover:bg-black transition-colors cursor-hover">
+                                                    <Pencil size={14}/>
+                                                </button>
+                                                <button onClick={() => handleDelete('polls', poll.firebaseId)} className="p-1.5 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors cursor-hover">
+                                                    <Trash2 size={14}/>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* 6. TRANSACTIONS */}
                 {activeTab === 'TRANSACTIONS' && (
                     <div className="fade-up">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-10 border-b-2 border-black pb-4 gap-4">
@@ -860,7 +1033,7 @@ const AdminDashboard = ({
                     </div>
                 )}
 
-                {/* 6. REVIEWS */}
+                {/* 7. REVIEWS */}
                 {activeTab === 'REVIEWS' && (
                   <div className="fade-up">
                     <h2 className="text-4xl md:text-8xl font-heading mb-6 md:mb-10 tracking-tighter border-b-2 border-black pb-4">FEEDBACK</h2>
@@ -903,27 +1076,7 @@ const AdminDashboard = ({
                             <input placeholder="PLATFORM" className="w-full border-b border-zinc-100 py-3 outline-none uppercase font-bold text-[10px]" value={catForm.app} onChange={e => setCatForm({...catForm, app: e.target.value})}/>
                             <input placeholder="PRICE" className="w-full border-b border-zinc-100 py-3 outline-none uppercase font-bold text-[10px]" value={catForm.price} onChange={e => setCatForm({...catForm, price: e.target.value})}/>
                         </div>
-                        <div className="border-2 border-dashed border-zinc-200 p-6 md:p-8 text-center relative hover:border-black transition-colors cursor-pointer">
-                            <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleImageFile(e, setCatForm, catForm)} accept="image/*,video/*"/>
-                            {isUploading ? (
-                                <div className="flex flex-col items-center">
-                                    <Loader2 className="animate-spin" size={24} />
-                                    <span className="mt-2 text-xs font-bold uppercase">UPLOADING...</span>
-                                </div>
-                            ) : catForm.imageUrl ? (
-                                catForm.imageUrl.match(/\.(mp4|mov|avi|wmv|flv|mkv)$/i) ? (
-                                    <video src={catForm.imageUrl} className="h-40 mx-auto border border-black" controls />
-                                ) : (
-                                    <img src={catForm.imageUrl} className="h-40 mx-auto border border-black" alt="Preview"/>
-                                )
-                            ) : (
-                                <div className="flex flex-col items-center text-zinc-300 font-bold uppercase text-[10px]">
-                                    <ImageIcon size={40}/>
-                                    <span className="mt-2">Upload Image/Video</span>
-                                    <span className="text-[8px] mt-1">Supports: JPG, PNG, MP4, MOV</span>
-                                </div>
-                            )}
-                        </div>
+                        <input placeholder="IMAGE URL" className="w-full border-b-2 border-black py-3 outline-none font-mono text-xs" value={catForm.imageUrl} onChange={e => setCatForm({...catForm, imageUrl: e.target.value})}/>
                         <textarea placeholder="DESC" className="w-full h-32 border border-zinc-100 p-3 font-mono text-xs uppercase" value={catForm.desc} onChange={e => setCatForm({...catForm, desc: e.target.value})}/>
                         <label className="flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest cursor-pointer">
                             <input type="checkbox" checked={catForm.isBestSeller} onChange={e => setCatForm({...catForm, isBestSeller: e.target.checked})}/> 
@@ -937,23 +1090,7 @@ const AdminDashboard = ({
                 {activeTab === 'NEWS' && (
                     <div className="space-y-6">
                         <input placeholder="TITLE" className="w-full border-b-2 border-black py-3 outline-none font-heading text-xl md:text-2xl uppercase" value={infoForm.title} onChange={e => setInfoForm({...infoForm, title: e.target.value})}/>
-                        <div className="border-2 border-dashed border-zinc-200 p-6 md:p-8 text-center relative hover:border-black cursor-pointer">
-                            <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleImageFile(e, setInfoForm, infoForm)} accept="image/*,video/*"/>
-                            {isUploading ? (
-                                <div className="flex flex-col items-center">
-                                    <Loader2 className="animate-spin" size={24} />
-                                    <span className="mt-2 text-xs font-bold uppercase">UPLOADING...</span>
-                                </div>
-                            ) : infoForm.imageUrl ? (
-                                infoForm.imageUrl.match(/\.(mp4|mov|avi|wmv|flv|mkv)$/i) ? (
-                                    <video src={infoForm.imageUrl} className="h-40 mx-auto" controls />
-                                ) : (
-                                    <img src={infoForm.imageUrl} className="h-40 mx-auto" alt="Preview"/>
-                                )
-                            ) : (
-                                "Upload Source"
-                            )}
-                        </div>
+                        <input placeholder="IMAGE URL" className="w-full border-b-2 border-black py-3 outline-none font-mono text-xs" value={infoForm.imageUrl} onChange={e => setInfoForm({...infoForm, imageUrl: e.target.value})}/>
                         <textarea placeholder="CONTENT" className="w-full h-48 border border-zinc-100 p-3 font-mono text-xs uppercase" value={infoForm.content} onChange={e => setInfoForm({...infoForm, content: e.target.value})}/>
                         <button onClick={async () => { await handleSaveInfo(infoForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest cursor-hover hover:bg-[#ea281e] transition-colors">
                             DEPLOY POST
@@ -973,29 +1110,59 @@ const AdminDashboard = ({
                                 <option value="portrait">PORTRAIT</option>
                             </select>
                         </div>
+                        <input placeholder="IMAGE/VIDEO URL" className="w-full border-b-2 border-black py-3 outline-none font-mono text-xs" value={banForm.imageUrl} onChange={e => setBanForm({...banForm, imageUrl: e.target.value})}/>
                         <input placeholder="LINK (optional) e.g. https://example.com" className="w-full border-b-2 border-black py-3 outline-none font-mono text-xs" value={banForm.link} onChange={e => setBanForm({...banForm, link: e.target.value})}/>
-                        <div className="border-2 border-dashed border-zinc-200 p-6 md:p-10 text-center relative cursor-pointer hover:border-black transition-colors">
-                            <input type="file" className="absolute inset-0 opacity-0" onChange={e => handleImageFile(e, setBanForm, banForm)} accept="image/*,video/*"/>
-                            {isUploading ? (
-                                <div className="flex flex-col items-center">
-                                    <Loader2 className="animate-spin" size={24} />
-                                    <span className="mt-2 text-xs font-bold uppercase">UPLOADING...</span>
-                                </div>
-                            ) : banForm.imageUrl ? (
-                                <div>
-                                    {banForm.imageUrl.match(/\.(mp4|mov|avi|wmv|flv|mkv)$/i) ? (
-                                        <video src={banForm.imageUrl} className="h-40 mx-auto mb-2" controls />
-                                    ) : (
-                                        <img src={banForm.imageUrl} alt="Preview" className="h-40 mx-auto mb-2" />
-                                    )}
-                                    <div className="text-[10px] truncate font-bold text-green-600">{banForm.imageUrl.substring(0,50)}...</div>
-                                </div>
-                            ) : (
-                                <div className="uppercase font-bold text-[10px] text-zinc-300">Choose Image/Video File</div>
-                            )}
-                        </div>
                         <button onClick={async () => { const s = await handleSaveBanner(banForm, editingId); if(s) setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest cursor-hover hover:bg-[#ea281e] transition-colors">
                             LAUNCH AD
+                        </button>
+                    </div>
+                )}
+                {activeTab === 'POLLS' && (
+                    <div className="space-y-6">
+                        <input placeholder="POLL QUESTION" className="w-full border-b-2 border-black py-3 outline-none font-heading text-xl md:text-2xl uppercase" value={pollForm.question} onChange={e => setPollForm({...pollForm, question: e.target.value})}/>
+                        
+                        <div className="space-y-4">
+                            <div className="text-sm font-bold uppercase">Poll Options</div>
+                            {pollForm.options.map((option, index) => (
+                                <div key={index} className="flex gap-2 items-center">
+                                    <input
+                                        type="text"
+                                        placeholder={`Option ${index + 1}`}
+                                        className="flex-1 border-b border-zinc-300 py-2 outline-none"
+                                        value={option}
+                                        onChange={e => {
+                                            const newOptions = [...pollForm.options];
+                                            newOptions[index] = e.target.value;
+                                            setPollForm({...pollForm, options: newOptions});
+                                        }}
+                                    />
+                                    {pollForm.options.length > 2 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removePollOption(index)}
+                                            className="text-red-500 cursor-hover"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={addPollOption}
+                                className="text-sm text-blue-500 cursor-hover"
+                            >
+                                + Add Option
+                            </button>
+                        </div>
+                        
+                        <label className="flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest cursor-pointer">
+                            <input type="checkbox" checked={pollForm.active} onChange={e => setPollForm({...pollForm, active: e.target.checked})}/> 
+                            ACTIVE POLL
+                        </label>
+                        
+                        <button onClick={async () => { await handleSavePoll(pollForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest hover:bg-[#ea281e] transition-colors cursor-hover">
+                            {editingId ? 'UPDATE POLL' : 'CREATE POLL'}
                         </button>
                     </div>
                 )}
@@ -1035,6 +1202,7 @@ export default function App() {
   const [banners, setBanners] = useState([]);
   const [activities, setActivities] = useState([]);
   const [comments, setComments] = useState([]);
+  const [polls, setPolls] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   // UI States
@@ -1044,7 +1212,6 @@ export default function App() {
   const [commentText, setCommentText] = useState('');
   const [commentRating, setCommentRating] = useState(5);
   const [loginForm, setLoginForm] = useState({ user: '', pass: '' });
-  const [isUploading, setIsUploading] = useState(false);
 
   const t = translations[lang];
 
@@ -1061,6 +1228,7 @@ export default function App() {
     onSnapshot(query(collection(db, "informations"), orderBy("id", "desc")), (s) => setInformations(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
     onSnapshot(query(collection(db, "transactions"), orderBy("id", "desc")), (s) => setTransactions(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
     onSnapshot(query(collection(db, "banners"), orderBy("id", "desc")), (s) => setBanners(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
+    onSnapshot(query(collection(db, "polls"), orderBy("createdAt", "desc")), (s) => setPolls(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
     onSnapshot(query(collection(db, "activities"), orderBy("id", "desc")), (s) => setActivities(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
     onSnapshot(query(collection(db, "comments"), orderBy("timestamp", "desc")), (s) => setComments(s.docs.map(d => ({...d.data(), firebaseId: d.id}))));
   };
@@ -1096,6 +1264,25 @@ export default function App() {
 
   const handleApproveReview = async (id) => { 
     await updateDoc(doc(db, "comments", id), { status: 'approved' }); 
+  };
+
+  const handleVote = async (pollId, optionIndex) => {
+    try {
+      const pollRef = doc(db, "polls", pollId);
+      const optionPath = `options.${optionIndex}.votes`;
+      
+      await updateDoc(pollRef, {
+        [optionPath]: increment(1),
+        totalVotes: increment(1)
+      });
+      
+      alert("Vote berhasil!");
+      return true;
+    } catch (error) {
+      console.error("Error voting:", error);
+      alert("Gagal melakukan vote.");
+      return false;
+    }
   };
 
   const handleSaveCatalog = async (data, editId) => {
@@ -1146,6 +1333,32 @@ export default function App() {
     }
   };
 
+  const handleSavePoll = async (data, editId) => {
+    try {
+      const optionsWithVotes = data.options.map(option => ({
+        text: option,
+        votes: 0
+      }));
+      
+      const payload = {
+        question: data.question || "Untitled Poll",
+        options: optionsWithVotes,
+        active: data.active || true,
+        totalVotes: 0,
+        createdAt: new Date(),
+        id: editId ? data.id : Date.now()
+      };
+      
+      if(editId) await updateDoc(doc(db, "polls", editId), payload);
+      else await addDoc(collection(db, "polls"), payload);
+      return true;
+    } catch(e) { 
+      console.error("Error saving poll:", e); 
+      alert("Gagal menyimpan poll: " + e.message);
+      return false; 
+    }
+  };
+
   const handleSaveTransaction = async (data, editId) => {
     let payload = { 
       name: data.name || '', 
@@ -1162,31 +1375,6 @@ export default function App() {
     
     if(editId) await updateDoc(doc(db, "transactions", editId), payload);
     else await addDoc(collection(db, "transactions"), payload);
-  };
-
-  const handleImageFile = async (e, setter, currentData) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Cek ukuran file (max 50MB untuk video, 10MB untuk gambar)
-    const maxSize = file.type.includes('video') ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      alert(`File terlalu besar! Maksimal: ${file.type.includes('video') ? '50MB' : '10MB'}`);
-      return;
-    }
-
-    setIsUploading(true);
-    try {
-      const storageRef = ref(storage, `uploads/${Date.now()}-${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-
-      setter({ ...currentData, imageUrl: downloadURL });
-    } catch (err) {
-      console.error("Upload failed:", err);
-      alert("Upload gagal: " + err.message);
-    }
-    setIsUploading(false);
   };
 
   const handleDelete = async (coll, id) => {
@@ -1210,6 +1398,8 @@ export default function App() {
     <div className="antialiased select-none">
         <style>{globalStyles}</style>
         <CustomCursor />
+        <MusicPlayer />
+        
         <Header isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} setView={setView} lang={lang} setLang={setLang} t={t} />
         
         <div className={`menu-overlay ${isMenuOpen ? 'open' : ''}`}>
@@ -1229,6 +1419,7 @@ export default function App() {
               commentEmail={commentEmail} setCommentEmail={setCommentEmail} handlePostComment={handlePostComment}
               commentText={commentText} setCommentText={setCommentText} commentRating={commentRating} setCommentRating={setCommentRating}
               t={t} isVerifying={isVerifying} setReviewType={setReviewType} reviewType={reviewType}
+              polls={polls} handleVote={handleVote}
             />
         )}
         
@@ -1257,14 +1448,14 @@ export default function App() {
                 transactions={transactions} 
                 activities={activities} 
                 comments={comments}
+                polls={polls}
                 handleSaveCatalog={handleSaveCatalog} 
                 handleSaveInfo={handleSaveInfo} 
                 handleSaveBanner={handleSaveBanner} 
+                handleSavePoll={handleSavePoll}
                 handleSaveTransaction={handleSaveTransaction}
                 handleDelete={handleDelete}
                 handleApproveReview={handleApproveReview} 
-                isUploading={isUploading} 
-                handleImageFile={handleImageFile} 
                 handleLogout={handleLogout}
             />
         )}
