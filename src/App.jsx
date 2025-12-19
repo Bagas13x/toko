@@ -13,6 +13,7 @@ import {
   List, Upload, Trash2, Pencil, LogOut, Lock, ChevronDown, ChevronUp,
   Image as ImageIcon, CheckCircle2, Activity, MessageSquare, ExternalLink, Play, Disc, Globe
 } from 'lucide-react';
+import musicFile from "./assets/music.mp3"; // Sesuaikan dengan nama file di folder assets Anda
 
 // ============================================================
 // 1. KONFIGURASI FIREBASE (STABLE)
@@ -169,7 +170,7 @@ const TimeDisplay = ({ targetDate, status }) => {
 const LandingPage = ({ setView, catalog, t }) => (
   <div className="w-full bg-white text-black">
     <section className="h-screen flex flex-col justify-center px-6 md:px-12 pt-10 md:pt-20 relative overflow-hidden">
-      <h1 className="text-[20vw] md:text-[18vw] leading-[0.8] font-bold font-heading fade-up" style={{animationDelay: '0.1s'}}>{t?.digital || "TOKKO"}</h1>
+      {/* <h1 className="text-[20vw] md:text-[18vw] leading-[0.8] font-bold font-heading fade-up" style={{animationDelay: '0.1s'}}>{t?.digital || "TOKKO"}</h1> */}
       <div className="flex items-center gap-4 fade-up" style={{animationDelay: '0.2s'}}>
           <h1 className="text-[20vw] md:text-[18vw] font-bold font-heading text-[#ea281e]">{t?.future || "TOKKO"}</h1>
           <button onClick={() => setView('store')} className="hidden md:flex w-40 h-40 rounded-full border border-black items-center justify-center font-heading font-bold text-lg hover:bg-black hover:text-white transition-all cursor-hover">{t?.explore || "EXPLORE"}</button>
@@ -540,7 +541,7 @@ const AdminDashboard = ({
         <div className="min-h-screen bg-white flex pt-16 md:pt-24">
             {/* Sidebar */}
             <aside className="w-64 border-r-2 border-black p-8 hidden md:block sticky top-24 h-[calc(100vh-6rem)] shrink-0">
-                <div className="flex items-center gap-2 mb-10"><div className="w-2 h-2 bg-[#ea281e] rounded-full"></div><h2 className="font-heading text-xl uppercase tracking-tighter">Chief Panel</h2></div>
+                <div className="flex items-center gap-2 mb-10"><div className="w-2 h-2 bg-[#ea281e] rounded-full"></div><h2 className="font-heading text-xl uppercase tracking-tighter">Admin Panel</h2></div>
                 <nav className="space-y-1">
                     {tabs.map(tab => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left font-heading text-lg p-3 border border-black transition-all mb-2 ${activeTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:bg-zinc-50'}`}>{tab}</button>
@@ -895,7 +896,7 @@ export default function App() {
             <nav className="flex flex-col items-start px-12">
                 <button onClick={() => {setView('landing'); setIsMenuOpen(false);}} className="menu-link">{t?.home || "HOME"}</button>
                 <button onClick={() => {setView('store'); setIsMenuOpen(false);}} className="menu-link">{t?.store || "STORE"}</button>
-                <button onClick={() => {setView('admin'); setIsMenuOpen(false);}} className="menu-link uppercase">ADMIN PANEL</button>
+                <button onClick={() => {setView('admin'); setIsMenuOpen(false);}} className="menu-link uppercase">ADMIN</button>
             </nav>
         </div>
 
