@@ -3,7 +3,7 @@ import bagasImg from "./assets/bagas.jpg";
 import { initializeApp } from "firebase/app";
 import { 
   getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, 
-  onSnapshot, query, orderBy, setDoc, deleteField, where, getDocs 
+  onSnapshot, query, orderBy, setDoc, where, getDocs 
 } from "firebase/firestore";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { 
@@ -13,7 +13,8 @@ import {
   List, Upload, Trash2, Pencil, LogOut, Lock, ChevronDown, ChevronUp,
   Image as ImageIcon, CheckCircle2, Activity, MessageSquare, ExternalLink, Play, Disc, Globe
 } from 'lucide-react';
-import musicFile from "./assets/music.mp3"; // Sesuaikan dengan nama file di folder assets Anda
+import musicFile from "./assets/music.mp3";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // ============================================================
 // 1. KONFIGURASI FIREBASE (STABLE)
@@ -31,6 +32,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 // ============================================================
 // 2. TRANSLATIONS (JAWA, ID, EN)
@@ -170,7 +172,6 @@ const TimeDisplay = ({ targetDate, status }) => {
 const LandingPage = ({ setView, catalog, t }) => (
   <div className="w-full bg-white text-black">
     <section className="h-screen flex flex-col justify-center px-6 md:px-12 pt-10 md:pt-20 relative overflow-hidden">
-      {/* <h1 className="text-[20vw] md:text-[18vw] leading-[0.8] font-bold font-heading fade-up" style={{animationDelay: '0.1s'}}>{t?.digital || "TOKKO"}</h1> */}
       <div className="flex items-center gap-4 fade-up" style={{animationDelay: '0.2s'}}>
           <h1 className="text-[20vw] md:text-[18vw] font-bold font-heading text-[#ea281e]">{t?.future || "TOKKO"}</h1>
           <button onClick={() => setView('store')} className="hidden md:flex w-40 h-40 rounded-full border border-black items-center justify-center font-heading font-bold text-lg hover:bg-black hover:text-white transition-all cursor-hover">{t?.explore || "EXPLORE"}</button>
@@ -235,9 +236,14 @@ const StorePage = ({
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedJournal, setSelectedJournal] = useState(null);
 
-  // Perbaikan Banner Persistence
-  const landscapeBanners = useMemo(() => (banners || []).filter(b => b.orientation === 'landscape'), [banners]);
-  const portraitBanners = useMemo(() => (banners || []).filter(b => b.orientation === 'portrait'), [banners]);
+  // Banner Persistence Fix
+  const landscapeBanners = useMemo(() => {
+    return (banners || []).filter(b => b.orientation === 'landscape').sort((a, b) => (b.id || 0) - (a.id || 0));
+  }, [banners]);
+
+  const portraitBanners = useMemo(() => {
+    return (banners || []).filter(b => b.orientation === 'portrait').sort((a, b) => (b.id || 0) - (a.id || 0));
+  }, [banners]);
 
   const journalEntries = useMemo(() => {
     const infos = (informations || []).map(i => ({ ...i, type: 'NEWS' }));
@@ -277,9 +283,13 @@ const StorePage = ({
             {/* Landscape Section */}
             {landscapeBanners.length > 0 && (
               <div className="w-full mb-8">
-                {landscapeBanners.slice(0, 1).map((lb, i) => (
-                  <div key={i} className="relative w-full aspect-video md:aspect-[21/9] border-2 border-black overflow-hidden bg-zinc-100 shadow-[8px_8px_0_black]">
-                    {lb.type === 'video' ? <video src={lb.image} autoPlay muted loop playsInline className="w-full h-full object-cover" /> : <img src={lb.image} className="w-full h-full object-cover" alt="Ads" />}
+                {landscapeBanners.map((lb, i) => (
+                  <div key={lb.firebaseId || i} className="relative w-full aspect-video md:aspect-[21/9] border-2 border-black overflow-hidden bg-zinc-100 shadow-[8px_8px_0_black] mb-6">
+                    {lb.type === 'video' ? (
+                      <video src={lb.image} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                    ) : (
+                      <img src={lb.image} className="w-full h-full object-cover" alt="Ads" />
+                    )}
                     <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em]">PROMOTED</div>
                   </div>
                 ))}
@@ -287,14 +297,20 @@ const StorePage = ({
             )}
 
             {/* Portrait/Clip Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-              {portraitBanners.map((pb, i) => (
-                <div key={pb.firebaseId || i} className="relative overflow-hidden group border-2 border-black bg-zinc-100 aspect-[9/16]">
-                  {pb.type === 'video' ? <video src={pb.image} autoPlay muted loop playsInline className="w-full h-full object-cover" /> : <img src={pb.image} className="w-full h-full object-cover" alt="Clip" />}
-                  <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase border border-black text-black">CLIP</div>
-                </div>
-              ))}
-            </div>
+            {portraitBanners.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                {portraitBanners.map((pb) => (
+                  <div key={pb.firebaseId} className="relative overflow-hidden group border-2 border-black bg-zinc-100 aspect-[9/16]">
+                    {pb.type === 'video' ? (
+                      <video src={pb.image} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                    ) : (
+                      <img src={pb.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Clip" />
+                    )}
+                    <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase border border-black text-black">CLIP</div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Featured Catalog */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8 pt-10">
@@ -511,7 +527,7 @@ const AdminLoginView = ({ loginForm, setLoginForm, handleAdminLogin, setView, t 
 );
 
 // ============================================================
-// 8. ADMIN DASHBOARD VIEW (FULLY VERBOSE)
+// 8. ADMIN DASHBOARD VIEW (FIX MOBILE & BANNER)
 // ============================================================
 const AdminDashboard = ({ 
     activeTab, setActiveTab, globalStatus, setGlobalStatus, catalog, informations, banners, transactions, activities, comments,
@@ -520,6 +536,7 @@ const AdminDashboard = ({
 }) => {
     const [editingId, setEditingId] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const tabs = ['SYSTEM', 'CATALOG', 'NEWS', 'BANNERS', 'TRANSACTIONS', 'REVIEWS'];
     
     // Forms
@@ -538,27 +555,67 @@ const AdminDashboard = ({
     };
 
     return (
-        <div className="min-h-screen bg-white flex pt-16 md:pt-24">
-            {/* Sidebar */}
-            <aside className="w-64 border-r-2 border-black p-8 hidden md:block sticky top-24 h-[calc(100vh-6rem)] shrink-0">
-                <div className="flex items-center gap-2 mb-10"><div className="w-2 h-2 bg-[#ea281e] rounded-full"></div><h2 className="font-heading text-xl uppercase tracking-tighter">Admin Panel</h2></div>
+        <div className="min-h-screen bg-white flex flex-col md:flex-row pt-16 md:pt-24">
+            {/* Mobile Header */}
+            <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b-2 border-black z-50 flex justify-between items-center p-4">
+                <h2 className="font-heading text-xl uppercase tracking-tighter">Admin Panel</h2>
+                <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 border border-black">
+                    {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+            </div>
+
+            {/* Mobile Menu Overlay */}
+            {isMobileMenuOpen && (
+                <div className="md:hidden fixed inset-0 bg-white z-40 pt-16">
+                    <div className="p-6 space-y-2">
+                        {tabs.map(tab => (
+                            <button key={tab} onClick={() => { setActiveTab(tab); setIsMobileMenuOpen(false); }} className={`w-full text-left font-heading text-lg p-4 border border-black transition-all ${activeTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:bg-zinc-50'}`}>
+                                {tab}
+                            </button>
+                        ))}
+                        <button onClick={handleLogout} className="w-full mt-4 flex items-center justify-center gap-2 text-red-600 font-bold text-xs uppercase tracking-widest p-4 border border-red-600">
+                            <LogOut size={14}/> LOGOUT SYSTEM
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Sidebar for Desktop */}
+            <aside className="hidden md:block w-64 border-r-2 border-black p-8 sticky top-24 h-[calc(100vh-6rem)] shrink-0">
+                <div className="flex items-center gap-2 mb-10">
+                    <div className="w-2 h-2 bg-[#ea281e] rounded-full"></div>
+                    <h2 className="font-heading text-xl uppercase tracking-tighter">Admin Panel</h2>
+                </div>
                 <nav className="space-y-1">
                     {tabs.map(tab => (
-                        <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left font-heading text-lg p-3 border border-black transition-all mb-2 ${activeTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:bg-zinc-50'}`}>{tab}</button>
+                        <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left font-heading text-lg p-3 border border-black transition-all mb-2 ${activeTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:bg-zinc-50'}`}>
+                            {tab}
+                        </button>
                     ))}
                 </nav>
-                <button onClick={handleLogout} className="mt-20 flex items-center gap-2 text-red-600 font-bold text-[10px] uppercase tracking-widest"><LogOut size={14}/> LOGOUT SYSTEM</button>
+                <button onClick={handleLogout} className="mt-20 flex items-center gap-2 text-red-600 font-bold text-[10px] uppercase tracking-widest">
+                    <LogOut size={14}/> LOGOUT SYSTEM
+                </button>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-4 md:p-16 overflow-y-auto no-scrollbar">
+            <main className="flex-1 p-4 md:p-8 lg:p-16 overflow-y-auto no-scrollbar mt-16 md:mt-0">
+                {/* Mobile Tabs Indicator */}
+                <div className="md:hidden mb-6">
+                    <div className="bg-black text-white p-3 font-heading text-center uppercase tracking-tighter">
+                        {activeTab}
+                    </div>
+                </div>
+
                 {/* 1. SYSTEM */}
                 {activeTab === 'SYSTEM' && (
                     <div className="fade-up space-y-10">
-                        <h2 className="text-6xl md:text-8xl font-heading tracking-tighter">SYSTEM</h2>
+                        <h2 className="text-4xl md:text-8xl font-heading tracking-tighter">SYSTEM</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {['Aktif', 'Perbaikan', 'Mati'].map(s => (
-                                <button key={s} onClick={() => setGlobalStatus(s)} className={`p-12 border-2 font-heading text-4xl transition-all ${globalStatus === s ? 'bg-black text-white border-black' : 'text-zinc-200 border-zinc-100 hover:border-black'}`}>{s.toUpperCase()}</button>
+                                <button key={s} onClick={() => setGlobalStatus(s)} className={`p-6 md:p-12 border-2 font-heading text-2xl md:text-4xl transition-all ${globalStatus === s ? 'bg-black text-white border-black' : 'text-zinc-200 border-zinc-100 hover:border-black'}`}>
+                                    {s.toUpperCase()}
+                                </button>
                             ))}
                         </div>
                     </div>
@@ -567,20 +624,31 @@ const AdminDashboard = ({
                 {/* 2. CATALOG */}
                 {activeTab === 'CATALOG' && (
                     <div className="fade-up">
-                        <div className="flex justify-between items-end mb-10 border-b-2 border-black pb-4">
-                            <h2 className="text-6xl md:text-8xl font-heading tracking-tighter">CATALOG</h2>
-                            <button onClick={() => { setEditingId(null); setCatForm({ name: '', app: '', price: '', desc: '', isBestSeller: false, imageUrl: '' }); setIsModalOpen(true); }} className="bg-black text-white px-6 py-2 font-bold uppercase text-xs">ADD NEW</button>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-10 border-b-2 border-black pb-4 gap-4">
+                            <h2 className="text-4xl md:text-8xl font-heading tracking-tighter">CATALOG</h2>
+                            <button onClick={() => { setEditingId(null); setCatForm({ name: '', app: '', price: '', desc: '', isBestSeller: false, imageUrl: '' }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs">
+                                ADD NEW
+                            </button>
                         </div>
                         <div className="grid grid-cols-1 gap-4">
                             {(catalog || []).map(item => (
-                                <div key={item.firebaseId} className="border-2 border-black p-4 flex justify-between items-center group bg-white shadow-[4px_4px_0_black]">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 md:w-20 md:h-20 bg-zinc-100 border border-black overflow-hidden shrink-0">{item.image && <img src={item.image} className="w-full h-full object-cover" alt="prod"/>}</div>
-                                        <div><h3 className="font-heading text-xl md:text-3xl uppercase tracking-tighter leading-none">{item.name}</h3><p className="font-mono text-[9px] md:text-xs text-gray-400 uppercase font-bold">{item.app} — {item.price}</p></div>
+                                <div key={item.firebaseId} className="border-2 border-black p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group bg-white shadow-[4px_4px_0_black]">
+                                    <div className="flex items-center gap-4 w-full md:w-auto">
+                                        <div className="w-16 h-16 md:w-20 md:h-20 bg-zinc-100 border border-black overflow-hidden shrink-0">
+                                            {item.image && <img src={item.image} className="w-full h-full object-cover" alt="prod"/>}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-heading text-lg md:text-3xl uppercase tracking-tighter leading-none line-clamp-1">{item.name}</h3>
+                                            <p className="font-mono text-[9px] md:text-xs text-gray-400 uppercase font-bold">{item.app} — {item.price}</p>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => openEdit('catalog', item)} className="p-2 border border-black hover:bg-black transition-colors"><Pencil size={18}/></button>
-                                        <button onClick={() => handleDelete('catalog', item.firebaseId)} className="p-2 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors"><Trash2 size={18}/></button>
+                                    <div className="flex gap-2 w-full md:w-auto justify-end">
+                                        <button onClick={() => openEdit('catalog', item)} className="p-2 border border-black hover:bg-black transition-colors text-xs md:text-base">
+                                            <Pencil size={16}/>
+                                        </button>
+                                        <button onClick={() => handleDelete('catalog', item.firebaseId)} className="p-2 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors text-xs md:text-base">
+                                            <Trash2 size={16}/>
+                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -591,21 +659,29 @@ const AdminDashboard = ({
                 {/* 3. NEWS */}
                 {activeTab === 'NEWS' && (
                     <div className="fade-up">
-                        <div className="flex justify-between items-end mb-10 border-b-2 border-black pb-4">
-                            <h2 className="text-6xl md:text-8xl font-heading tracking-tighter">JOURNAL</h2>
-                            <button onClick={() => { setEditingId(null); setInfoForm({ title: '', content: '', imageUrl: '', isFeatured: false }); setIsModalOpen(true); }} className="bg-black text-white px-6 py-2 font-bold uppercase text-xs">NEW POST</button>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-10 border-b-2 border-black pb-4 gap-4">
+                            <h2 className="text-4xl md:text-8xl font-heading tracking-tighter">JOURNAL</h2>
+                            <button onClick={() => { setEditingId(null); setInfoForm({ title: '', content: '', imageUrl: '', isFeatured: false }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs">
+                                NEW POST
+                            </button>
                         </div>
                         <div className="space-y-4">
                             {(informations || []).map(info => (
-                                <div key={info.firebaseId} className="border-2 border-black p-4 flex gap-6 items-center group bg-white shadow-[4px_4px_0_black]">
-                                    <div className="w-20 h-20 border border-zinc-200 overflow-hidden shrink-0"><img src={info.image} className="w-full h-full object-cover" alt="news"/></div>
-                                    <div className="flex-1">
-                                        <h3 className="font-heading text-xl uppercase tracking-tighter leading-none">{info.title}</h3>
+                                <div key={info.firebaseId} className="border-2 border-black p-4 flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-center group bg-white shadow-[4px_4px_0_black]">
+                                    <div className="w-full md:w-20 h-20 border border-zinc-200 overflow-hidden shrink-0">
+                                        <img src={info.image} className="w-full h-full object-cover" alt="news"/>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-heading text-lg md:text-xl uppercase tracking-tighter leading-none line-clamp-1">{info.title}</h3>
                                         <p className="text-[10px] font-mono text-zinc-400 font-bold mt-1 uppercase">{info.date}</p>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => openEdit('news', info)} className="p-2 border border-black"><Pencil size={16}/></button>
-                                        <button onClick={() => handleDelete('informations', info.firebaseId)} className="p-2 border border-[#ea281e] text-[#ea281e]"><Trash2 size={16}/></button>
+                                    <div className="flex gap-2 w-full md:w-auto justify-end">
+                                        <button onClick={() => openEdit('news', info)} className="p-2 border border-black hover:bg-black transition-colors">
+                                            <Pencil size={16}/>
+                                        </button>
+                                        <button onClick={() => handleDelete('informations', info.firebaseId)} className="p-2 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors">
+                                            <Trash2 size={16}/>
+                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -616,22 +692,36 @@ const AdminDashboard = ({
                 {/* 4. BANNERS */}
                 {activeTab === 'BANNERS' && (
                     <div className="fade-up">
-                        <div className="flex justify-between items-end mb-10 border-b-2 border-black pb-4">
-                            <h2 className="text-6xl md:text-8xl font-heading tracking-tighter">BANNERS</h2>
-                            <button onClick={() => { setEditingId(null); setBanForm({ title: '', desc: '', imageUrl: '', type: 'image', orientation: 'landscape' }); setIsModalOpen(true); }} className="bg-black text-white px-6 py-2 font-bold uppercase text-xs">NEW AD</button>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-10 border-b-2 border-black pb-4 gap-4">
+                            <h2 className="text-4xl md:text-8xl font-heading tracking-tighter">BANNERS</h2>
+                            <button onClick={() => { setEditingId(null); setBanForm({ title: '', desc: '', imageUrl: '', type: 'image', orientation: 'landscape' }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs">
+                                NEW AD
+                            </button>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                             {(banners || []).map(b => (
-                                <div key={b.firebaseId} className="border-2 border-black p-4 bg-white shadow-[6px_6px_0_black] group">
+                                <div key={b.firebaseId} className="border-2 border-black p-4 bg-white shadow-[4px_4px_0_black] md:shadow-[6px_6px_0_black] group">
                                     <div className="aspect-video bg-zinc-100 mb-4 overflow-hidden relative border border-black/10">
-                                        {b.type === 'video' ? <div className="w-full h-full flex items-center justify-center bg-black text-white font-mono text-[10px] font-bold">VIDEO SOURCE</div> : <img src={b.image} className="w-full h-full object-cover" alt="Banner"/>}
-                                        <div className="absolute top-2 left-2 bg-black text-white px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest">{b.orientation}</div>
+                                        {b.type === 'video' ? (
+                                            <video src={b.image} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+                                        ) : (
+                                            <img src={b.image} className="w-full h-full object-cover" alt="Banner"/>
+                                        )}
+                                        <div className="absolute top-2 left-2 bg-black text-white px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest">
+                                            {b.orientation}
+                                        </div>
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                        <h3 className="font-heading text-2xl truncate uppercase tracking-tighter italic">{b.title}</h3>
+                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-0">
+                                        <h3 className="font-heading text-lg md:text-2xl truncate uppercase tracking-tighter italic line-clamp-1">
+                                            {b.title}
+                                        </h3>
                                         <div className="flex gap-2">
-                                            <button onClick={() => openEdit('banner', b)} className="p-1.5 border border-black hover:bg-black transition-colors"><Pencil size={14}/></button>
-                                            <button onClick={() => handleDelete('banners', b.firebaseId)} className="p-1.5 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors"><Trash2 size={14}/></button>
+                                            <button onClick={() => openEdit('banner', b)} className="p-1.5 border border-black hover:bg-black transition-colors">
+                                                <Pencil size={14}/>
+                                            </button>
+                                            <button onClick={() => handleDelete('banners', b.firebaseId)} className="p-1.5 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors">
+                                                <Trash2 size={14}/>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -643,11 +733,13 @@ const AdminDashboard = ({
                 {/* 5. TRANSACTIONS */}
                 {activeTab === 'TRANSACTIONS' && (
                     <div className="fade-up">
-                        <div className="flex justify-between items-end mb-10 border-b-2 border-black pb-4">
-                            <h2 className="text-6xl md:text-8xl font-heading tracking-tighter">LOGBOOK</h2>
-                            <button onClick={() => { setEditingId(null); setTrxForm({ name: '', app: '', durationDays: '', email: '' }); setIsModalOpen(true); }} className="bg-black text-white px-6 py-2 font-bold uppercase text-xs">NEW ENTRY</button>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-10 border-b-2 border-black pb-4 gap-4">
+                            <h2 className="text-4xl md:text-8xl font-heading tracking-tighter">LOGBOOK</h2>
+                            <button onClick={() => { setEditingId(null); setTrxForm({ name: '', app: '', durationDays: '', email: '' }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs">
+                                NEW ENTRY
+                            </button>
                         </div>
-                        <div className="overflow-x-auto border-2 border-black shadow-[6px_6px_0_black]">
+                        <div className="overflow-x-auto border-2 border-black shadow-[4px_4px_0_black] md:shadow-[6px_6px_0_black]">
                             <table className="w-full text-left font-mono text-xs uppercase font-bold min-w-[600px]">
                                 <thead className="bg-black text-white">
                                     <tr>
@@ -668,8 +760,12 @@ const AdminDashboard = ({
                                             <td className="p-4 font-heading text-lg"><TimeDisplay targetDate={t.targetDate} status={t.status}/></td>
                                             <td className="p-4 text-right">
                                                 <div className="flex justify-end gap-3">
-                                                    <button onClick={() => openEdit('trx', t)} className="text-blue-600 hover:scale-110 transition-transform"><Pencil size={16}/></button>
-                                                    <button onClick={() => handleDelete('transactions', t.firebaseId)} className="text-[#ea281e] hover:scale-110 transition-transform"><Trash2 size={16}/></button>
+                                                    <button onClick={() => openEdit('trx', t)} className="text-blue-600 hover:scale-110 transition-transform">
+                                                        <Pencil size={16}/>
+                                                    </button>
+                                                    <button onClick={() => handleDelete('transactions', t.firebaseId)} className="text-[#ea281e] hover:scale-110 transition-transform">
+                                                        <Trash2 size={16}/>
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -683,25 +779,31 @@ const AdminDashboard = ({
                 {/* 6. REVIEWS */}
                 {activeTab === 'REVIEWS' && (
                   <div className="fade-up">
-                    <h2 className="text-6xl md:text-8xl font-heading mb-10 tracking-tighter border-b-2 border-black pb-4">FEEDBACK</h2>
+                    <h2 className="text-4xl md:text-8xl font-heading mb-6 md:mb-10 tracking-tighter border-b-2 border-black pb-4">FEEDBACK</h2>
                     <div className="space-y-6">
                       {(comments || []).filter(c => c.status === 'pending').map(c => (
-                        <div key={c.firebaseId} className="border-2 border-orange-500 bg-orange-50 p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-[6px_6px_0_#f97316]">
+                        <div key={c.firebaseId} className="border-2 border-orange-500 bg-orange-50 p-4 md:p-6 lg:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 shadow-[4px_4px_0_#f97316] md:shadow-[6px_6px_0_#f97316]">
                           <div className="flex-1 w-full uppercase font-bold">
                             <div className="flex items-center gap-3 mb-2 text-[10px] tracking-widest">
                               <span className="truncate max-w-[200px]">{c.email}</span>
                               <span className="bg-orange-500 text-white px-2 py-0.5">{c.role}</span>
                             </div>
-                            <p className="text-xl md:text-2xl font-serif leading-tight italic">"{c.text}"</p>
+                            <p className="text-lg md:text-xl lg:text-2xl font-serif leading-tight italic">"{c.text}"</p>
                           </div>
                           <div className="flex gap-3 w-full md:w-auto">
-                            <button onClick={() => handleApproveReview(c.firebaseId)} className="flex-1 bg-green-600 text-white px-6 py-3 font-bold uppercase text-[10px] border border-black shadow-[4px_4px_0_black] hover:bg-green-700 transition-colors">APPROVE</button>
-                            <button onClick={() => handleDelete('comments', c.firebaseId)} className="flex-1 bg-red-600 text-white px-6 py-3 font-bold uppercase text-[10px] border border-black shadow-[4px_4px_0_black] hover:bg-red-700 transition-colors">REJECT</button>
+                            <button onClick={() => handleApproveReview(c.firebaseId)} className="flex-1 bg-green-600 text-white px-4 md:px-6 py-2 md:py-3 font-bold uppercase text-[10px] border border-black shadow-[2px_2px_0_black] md:shadow-[4px_4px_0_black] hover:bg-green-700 transition-colors">
+                              APPROVE
+                            </button>
+                            <button onClick={() => handleDelete('comments', c.firebaseId)} className="flex-1 bg-red-600 text-white px-4 md:px-6 py-2 md:py-3 font-bold uppercase text-[10px] border border-black shadow-[2px_2px_0_black] md:shadow-[4px_4px_0_black] hover:bg-red-700 transition-colors">
+                              REJECT
+                            </button>
                           </div>
                         </div>
                       ))}
                       {(comments || []).filter(c => c.status === 'pending').length === 0 && (
-                        <div className="text-center py-20 uppercase font-heading text-zinc-300 text-3xl">Inbox is Clean</div>
+                        <div className="text-center py-10 md:py-20 uppercase font-heading text-zinc-300 text-xl md:text-3xl">
+                          Inbox is Clean
+                        </div>
                       )}
                     </div>
                   </div>
@@ -712,58 +814,80 @@ const AdminDashboard = ({
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`MGMT: ${activeTab}`}>
                 {activeTab === 'CATALOG' && (
                     <div className="space-y-6">
-                        <input placeholder="PRODUCT NAME" className="w-full border-b-2 border-black py-3 outline-none font-heading text-2xl uppercase" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})}/>
-                        <div className="grid grid-cols-2 gap-4">
+                        <input placeholder="PRODUCT NAME" className="w-full border-b-2 border-black py-3 outline-none font-heading text-xl md:text-2xl uppercase" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})}/>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <input placeholder="PLATFORM" className="w-full border-b border-zinc-100 py-3 outline-none uppercase font-bold text-[10px]" value={catForm.app} onChange={e => setCatForm({...catForm, app: e.target.value})}/>
                             <input placeholder="PRICE" className="w-full border-b border-zinc-100 py-3 outline-none uppercase font-bold text-[10px]" value={catForm.price} onChange={e => setCatForm({...catForm, price: e.target.value})}/>
                         </div>
-                        <div className="border-2 border-dashed border-zinc-200 p-8 text-center relative hover:border-black transition-colors cursor-pointer">
+                        <div className="border-2 border-dashed border-zinc-200 p-6 md:p-8 text-center relative hover:border-black transition-colors cursor-pointer">
                             <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleImageFile(e, setCatForm, catForm)}/>
                             {isUploading ? "PROCESS..." : catForm.imageUrl ? <img src={catForm.imageUrl} className="h-40 mx-auto border border-black" alt="Preview"/> : <div className="flex flex-col items-center text-zinc-300 font-bold uppercase text-[10px]"><ImageIcon size={40}/><span className="mt-2">Upload Visual</span></div>}
                         </div>
                         <textarea placeholder="DESC" className="w-full h-32 border border-zinc-100 p-3 font-mono text-xs uppercase" value={catForm.desc} onChange={e => setCatForm({...catForm, desc: e.target.value})}/>
-                        <label className="flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest cursor-pointer"><input type="checkbox" checked={catForm.isBestSeller} onChange={e => setCatForm({...catForm, isBestSeller: e.target.checked})}/> SHOWCASE ON HOME</label>
-                        <button onClick={async () => { await handleSaveCatalog(catForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-5 font-bold uppercase tracking-widest hover:bg-[#ea281e] transition-colors">COMMIT CHANGES</button>
+                        <label className="flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest cursor-pointer">
+                            <input type="checkbox" checked={catForm.isBestSeller} onChange={e => setCatForm({...catForm, isBestSeller: e.target.checked})}/> 
+                            SHOWCASE ON HOME
+                        </label>
+                        <button onClick={async () => { await handleSaveCatalog(catForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest hover:bg-[#ea281e] transition-colors">
+                            COMMIT CHANGES
+                        </button>
                     </div>
                 )}
                 {activeTab === 'NEWS' && (
                     <div className="space-y-6">
-                        <input placeholder="TITLE" className="w-full border-b-2 border-black py-3 outline-none font-heading text-2xl uppercase" value={infoForm.title} onChange={e => setInfoForm({...infoForm, title: e.target.value})}/>
-                        <div className="border-2 border-dashed border-zinc-200 p-8 text-center relative hover:border-black cursor-pointer">
+                        <input placeholder="TITLE" className="w-full border-b-2 border-black py-3 outline-none font-heading text-xl md:text-2xl uppercase" value={infoForm.title} onChange={e => setInfoForm({...infoForm, title: e.target.value})}/>
+                        <div className="border-2 border-dashed border-zinc-200 p-6 md:p-8 text-center relative hover:border-black cursor-pointer">
                             <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleImageFile(e, setInfoForm, infoForm)}/>
                             {isUploading ? "PROCESS..." : infoForm.imageUrl ? <img src={infoForm.imageUrl} className="h-40 mx-auto" alt="Preview"/> : "Upload Source"}
                         </div>
                         <textarea placeholder="CONTENT" className="w-full h-48 border border-zinc-100 p-3 font-mono text-xs uppercase" value={infoForm.content} onChange={e => setInfoForm({...infoForm, content: e.target.value})}/>
-                        <button onClick={async () => { await handleSaveInfo(infoForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-5 font-bold uppercase tracking-widest">DEPLOY POST</button>
+                        <button onClick={async () => { await handleSaveInfo(infoForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest">
+                            DEPLOY POST
+                        </button>
                     </div>
                 )}
                 {activeTab === 'BANNERS' && (
                     <div className="space-y-6">
-                        <input placeholder="CAMPAIGN NAME" className="w-full border-b-2 border-black py-3 outline-none font-heading text-2xl uppercase" value={banForm.title} onChange={e => setBanForm({...banForm, title: e.target.value})}/>
-                        <div className="grid grid-cols-2 gap-4">
+                        <input placeholder="CAMPAIGN NAME" className="w-full border-b-2 border-black py-3 outline-none font-heading text-xl md:text-2xl uppercase" value={banForm.title} onChange={e => setBanForm({...banForm, title: e.target.value})}/>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <select className="p-3 border border-black font-bold uppercase text-[10px]" value={banForm.type} onChange={e => setBanForm({...banForm, type: e.target.value})}>
-                                <option value="image">IMAGE</option><option value="video">VIDEO</option>
+                                <option value="image">IMAGE</option>
+                                <option value="video">VIDEO</option>
                             </select>
                             <select className="p-3 border border-black font-bold uppercase text-[10px]" value={banForm.orientation} onChange={e => setBanForm({...banForm, orientation: e.target.value})}>
-                                <option value="landscape">LANDSCAPE</option><option value="portrait">PORTRAIT</option>
+                                <option value="landscape">LANDSCAPE</option>
+                                <option value="portrait">PORTRAIT</option>
                             </select>
                         </div>
-                        <div className="border-2 border-dashed border-zinc-200 p-10 text-center relative cursor-pointer hover:border-black transition-colors">
+                        <div className="border-2 border-dashed border-zinc-200 p-6 md:p-10 text-center relative cursor-pointer hover:border-black transition-colors">
                             <input type="file" className="absolute inset-0 opacity-0" onChange={e => handleImageFile(e, setBanForm, banForm)}/>
-                            {isUploading ? "PROCESS..." : banForm.imageUrl ? <div className="text-[10px] truncate font-bold text-green-600">{banForm.imageUrl.substring(0,50)}...</div> : <div className="uppercase font-bold text-[10px] text-zinc-300">Choose File</div>}
+                            {isUploading ? (
+                                <div>PROCESS...</div>
+                            ) : banForm.imageUrl ? (
+                                <div>
+                                    <img src={banForm.imageUrl} alt="Preview" className="h-40 mx-auto mb-2" />
+                                    <div className="text-[10px] truncate font-bold text-green-600">{banForm.imageUrl.substring(0,50)}...</div>
+                                </div>
+                            ) : (
+                                <div className="uppercase font-bold text-[10px] text-zinc-300">Choose File</div>
+                            )}
                         </div>
-                        <button onClick={async () => { const s = await handleSaveBanner(banForm, editingId); if(s) setIsModalOpen(false); }} className="w-full bg-black text-white py-5 font-bold uppercase tracking-widest">LAUNCH AD</button>
+                        <button onClick={async () => { const s = await handleSaveBanner(banForm, editingId); if(s) setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest">
+                            LAUNCH AD
+                        </button>
                     </div>
                 )}
                 {activeTab === 'TRANSACTIONS' && (
                     <div className="space-y-6">
-                        <input placeholder="CLIENT NAME" className="w-full border-b-2 border-black py-3 outline-none font-heading text-2xl uppercase" value={trxForm.name} onChange={e => setTrxForm({...trxForm, name: e.target.value})}/>
-                        <div className="grid grid-cols-2 gap-4">
+                        <input placeholder="CLIENT NAME" className="w-full border-b-2 border-black py-3 outline-none font-heading text-xl md:text-2xl uppercase" value={trxForm.name} onChange={e => setTrxForm({...trxForm, name: e.target.value})}/>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <input placeholder="APP / PLATFORM" className="w-full border-b border-zinc-100 py-3 outline-none font-bold text-[10px] uppercase" value={trxForm.app} onChange={e => setTrxForm({...trxForm, app: e.target.value})}/>
                             <input type="number" placeholder="DAYS (DURASI)" className="w-full border-b border-zinc-100 py-3 outline-none font-bold text-[10px] uppercase" value={trxForm.durationDays} onChange={e => setTrxForm({...trxForm, durationDays: e.target.value})}/>
                         </div>
                         <input placeholder="USER EMAIL" className="w-full border-b border-zinc-100 py-3 outline-none font-mono text-[10px] font-bold" value={trxForm.email} onChange={e => setTrxForm({...trxForm, email: e.target.value})}/>
-                        <button onClick={async () => { await handleSaveTransaction(trxForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-5 font-bold uppercase tracking-widest">COMMIT DATA</button>
+                        <button onClick={async () => { await handleSaveTransaction(trxForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest">
+                            COMMIT DATA
+                        </button>
                     </div>
                 )}
             </Modal>
@@ -803,7 +927,10 @@ export default function App() {
   const t = translations[lang];
 
   useEffect(() => {
-    onAuthStateChanged(auth, (u) => { if(!u) signInAnonymously(auth); else subscribeData(); });
+    onAuthStateChanged(auth, (u) => { 
+      if(!u) signInAnonymously(auth); 
+      else subscribeData(); 
+    });
   }, []);
 
   const subscribeData = () => {
@@ -840,50 +967,113 @@ export default function App() {
           date: new Date().toLocaleString('id-ID')
       });
       alert(reviewType === 'customer' ? "Ulasan tayang!" : "Menunggu Approval Admin.");
-      setCommentText(''); setReviewType(null); setCommentEmail('');
+      setCommentText(''); 
+      setReviewType(null); 
+      setCommentEmail('');
   };
 
-  const handleApproveReview = async (id) => { await updateDoc(doc(db, "comments", id), { status: 'approved' }); };
+  const handleApproveReview = async (id) => { 
+    await updateDoc(doc(db, "comments", id), { status: 'approved' }); 
+  };
 
   const handleSaveCatalog = async (data, editId) => {
-    const payload = { ...data, image: data.imageUrl || '', id: editId ? data.id : Date.now() };
+    const payload = { 
+      ...data, 
+      image: data.imageUrl || '', 
+      id: editId ? data.id : Date.now(),
+      name: data.name || '',
+      app: data.app || '',
+      price: data.price || '',
+      desc: data.desc || '',
+      isBestSeller: data.isBestSeller || false
+    };
     if(editId) await updateDoc(doc(db, "catalog", editId), payload);
     else await addDoc(collection(db, "catalog"), payload);
   };
 
   const handleSaveInfo = async (data, editId) => {
-    const payload = { title: data.title, content: data.content, image: data.imageUrl || '', date: new Date().toLocaleDateString('id-ID'), id: editId ? data.id : Date.now() };
+    const payload = {
+      title: data.title || "Untitled",
+      content: data.content || "",
+      image: data.imageUrl || "",
+      date: new Date().toLocaleString('id-ID'),
+      id: editId ? data.id : Date.now(),
+      isFeatured: data.isFeatured || false
+    };
     if(editId) await updateDoc(doc(db, "informations", editId), payload);
     else await addDoc(collection(db, "informations"), payload);
   };
 
   const handleSaveBanner = async (data, editId) => {
     try {
-      const payload = { title: data.title || "Untitled", image: data.imageUrl || '', type: data.type || 'image', orientation: data.orientation || 'landscape', id: editId ? data.id : Date.now() };
+      const payload = { 
+        title: data.title || "Untitled", 
+        image: data.imageUrl || '', 
+        type: data.type || 'image', 
+        orientation: data.orientation || 'landscape', 
+        id: editId ? data.id : Date.now() 
+      };
       if(editId) await updateDoc(doc(db, "banners", editId), payload);
       else await addDoc(collection(db, "banners"), payload);
       return true;
-    } catch(e) { console.error(e); return false; }
+    } catch(e) { 
+      console.error("Error saving banner:", e); 
+      alert("Gagal menyimpan banner: " + e.message);
+      return false; 
+    }
   };
 
   const handleSaveTransaction = async (data, editId) => {
-    let payload = { name: data.name, app: data.app, email: data.email.toLowerCase(), status: 'Aktif' };
+    let payload = { 
+      name: data.name || '', 
+      app: data.app || '', 
+      email: data.email.toLowerCase() || '', 
+      status: 'Aktif' 
+    };
     if(data.durationDays) {
-        const tDate = new Date(); tDate.setDate(tDate.getDate() + parseInt(data.durationDays));
+        const tDate = new Date(); 
+        tDate.setDate(tDate.getDate() + parseInt(data.durationDays));
         payload.targetDate = tDate;
     }
+    payload.id = editId ? data.id : Date.now();
+    
     if(editId) await updateDoc(doc(db, "transactions", editId), payload);
-    else await addDoc(collection(db, "transactions"), {...payload, id: Date.now()});
+    else await addDoc(collection(db, "transactions"), payload);
   };
 
-  const handleImageFile = (e, setter, currentData) => {
+  const handleImageFile = async (e, setter, currentData) => {
     const file = e.target.files[0];
-    if (file) {
-      setIsUploading(true);
-      const r = new FileReader();
-      r.onloadend = () => { setter({ ...currentData, imageUrl: r.result }); setIsUploading(false); };
-      r.readAsDataURL(file);
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const storageRef = ref(storage, `uploads/${Date.now()}-${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      setter({ ...currentData, imageUrl: downloadURL });
+    } catch (err) {
+      console.error("Upload failed:", err);
+      alert("Upload gagal: " + err.message);
     }
+    setIsUploading(false);
+  };
+
+  const handleDelete = async (coll, id) => {
+    if(window.confirm("Hapus Permanen?")) {
+      try {
+        await deleteDoc(doc(db, coll, id));
+        alert("Data berhasil dihapus");
+      } catch (error) {
+        console.error("Error deleting:", error);
+        alert("Gagal menghapus data");
+      }
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAdminLoggedIn(false);
+    setView('landing');
   };
 
   return (
@@ -893,7 +1083,7 @@ export default function App() {
         <Header isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} setView={setView} lang={lang} setLang={setLang} t={t} />
         
         <div className={`menu-overlay ${isMenuOpen ? 'open' : ''}`}>
-            <nav className="flex flex-col items-start px-12">
+            <nav className="flex flex-col items-start px-4 md:px-12">
                 <button onClick={() => {setView('landing'); setIsMenuOpen(false);}} className="menu-link">{t?.home || "HOME"}</button>
                 <button onClick={() => {setView('store'); setIsMenuOpen(false);}} className="menu-link">{t?.store || "STORE"}</button>
                 <button onClick={() => {setView('admin'); setIsMenuOpen(false);}} className="menu-link uppercase">ADMIN</button>
@@ -915,19 +1105,37 @@ export default function App() {
         {view === 'admin' && !isAdminLoggedIn && (
             <AdminLoginView loginForm={loginForm} setLoginForm={setLoginForm} handleAdminLogin={(e) => {
                 e.preventDefault();
-                if(loginForm.user === 'Bagas' && loginForm.pass === '51512') setIsAdminLoggedIn(true);
-                else alert("Akses Ditolak: Data Tidak Valid");
+                if(loginForm.user === 'Bagas' && loginForm.pass === '51512') {
+                  setIsAdminLoggedIn(true);
+                  setAdminTab('SYSTEM');
+                } else {
+                  alert("Akses Ditolak: Data Tidak Valid");
+                }
             }} setView={setView} t={t} />
         )}
 
         {view === 'admin' && isAdminLoggedIn && (
             <AdminDashboard 
-                activeTab={adminTab} setActiveTab={setAdminTab} t={t}
-                globalStatus={globalStatus} setGlobalStatus={(s) => setDoc(doc(db, "settings", "global_status"), { status: s })}
-                catalog={catalog} informations={informations} banners={banners} transactions={transactions} activities={activities} comments={comments}
-                handleSaveCatalog={handleSaveCatalog} handleSaveInfo={handleSaveInfo} handleSaveBanner={handleSaveBanner} handleSaveTransaction={handleSaveTransaction}
-                handleDelete={(coll, id) => window.confirm("Hapus Permanen?") && deleteDoc(doc(db, coll, id))}
-                handleApproveReview={handleApproveReview} isUploading={isUploading} handleImageFile={handleImageFile} handleLogout={() => setIsAdminLoggedIn(false)}
+                activeTab={adminTab} 
+                setActiveTab={setAdminTab} 
+                t={t}
+                globalStatus={globalStatus} 
+                setGlobalStatus={(s) => setDoc(doc(db, "settings", "global_status"), { status: s })}
+                catalog={catalog} 
+                informations={informations} 
+                banners={banners} 
+                transactions={transactions} 
+                activities={activities} 
+                comments={comments}
+                handleSaveCatalog={handleSaveCatalog} 
+                handleSaveInfo={handleSaveInfo} 
+                handleSaveBanner={handleSaveBanner} 
+                handleSaveTransaction={handleSaveTransaction}
+                handleDelete={handleDelete}
+                handleApproveReview={handleApproveReview} 
+                isUploading={isUploading} 
+                handleImageFile={handleImageFile} 
+                handleLogout={handleLogout}
             />
         )}
     </div>
