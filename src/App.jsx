@@ -11,7 +11,8 @@ import {
   Check, AlertTriangle, XCircle, Search, Star, Bell, AlertCircle, 
   Send, Loader2, PauseCircle, Camera, FileText, Layout, LayoutTemplate, 
   List, Upload, Trash2, Pencil, LogOut, Lock, ChevronDown, ChevronUp,
-  Image as ImageIcon, CheckCircle2, Activity, MessageSquare, ExternalLink, Play, Disc, Globe
+  Image as ImageIcon, CheckCircle2, Activity, MessageSquare, ExternalLink, Play, Disc, Globe,
+  Music, Volume2, VolumeX
 } from 'lucide-react';
 import musicFile from "./assets/music.mp3";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -96,6 +97,9 @@ const globalStyles = `
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .admin-login-bg { background: radial-gradient(circle at top right, #111, #000); }
   .video-portrait { aspect-ratio: 9/16; object-fit: cover; width: 100%; border: 1px solid black; }
+  @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .rotate { animation: rotate 10s linear infinite; }
+  .rotate-paused { animation-play-state: paused; }
 `;
 
 // ============================================================
@@ -114,6 +118,54 @@ const CustomCursor = () => {
     return () => window.removeEventListener('mousemove', moveCursor);
   }, []);
   return <div ref={cursorRef} className="custom-cursor" />;
+};
+
+const MusicPlayer = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    // Auto play saat komponen dimount
+    if (audioRef.current) {
+      audioRef.current.volume = 0.3;
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          setIsPlaying(true);
+        }).catch(() => {
+          setIsPlaying(false);
+        });
+      }
+    }
+  }, []);
+
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  return (
+    <>
+      <audio ref={audioRef} loop>
+        <source src={musicFile} type="audio/mpeg" />
+      </audio>
+      <button
+        onClick={togglePlay}
+        className="fixed bottom-6 left-6 z-[1000] w-12 h-12 rounded-full bg-black text-white flex items-center justify-center cursor-hover shadow-lg border border-white/20"
+      >
+        <div className={`relative ${isPlaying ? 'rotate' : 'rotate rotate-paused'}`}>
+          <Disc size={24} />
+        </div>
+        <span className="sr-only">{isPlaying ? 'Pause music' : 'Play music'}</span>
+      </button>
+    </>
+  );
 };
 
 const Header = ({ isMenuOpen, setIsMenuOpen, setView, lang, setLang, t }) => (
@@ -170,7 +222,9 @@ const TimeDisplay = ({ targetDate, status }) => {
 // 5. LANDING PAGE VIEW
 // ============================================================
 const LandingPage = ({ setView, catalog, t }) => (
-  <div className="w-full bg-white text-black">
+  <div className="w-full bg-white text-black relative">
+    <MusicPlayer />
+    
     <section className="h-screen flex flex-col justify-center px-6 md:px-12 pt-10 md:pt-20 relative overflow-hidden">
       <div className="flex items-center gap-4 fade-up" style={{animationDelay: '0.2s'}}>
           <h1 className="text-[20vw] md:text-[18vw] font-bold font-heading text-[#ea281e]">{t?.future || "TOKKO"}</h1>
@@ -258,6 +312,13 @@ const StorePage = ({
 
   const approvedComments = useMemo(() => (comments || []).filter(c => c.status === 'approved'), [comments]);
 
+  // Handle banner click dengan link
+  const handleBannerClick = (banner) => {
+    if (banner.link) {
+      window.open(banner.link, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white pt-24 md:pt-32 pb-20">
       <div className="max-w-7xl mx-auto px-4 md:px-12">
@@ -284,13 +345,18 @@ const StorePage = ({
             {landscapeBanners.length > 0 && (
               <div className="w-full mb-8">
                 {landscapeBanners.map((lb, i) => (
-                  <div key={lb.firebaseId || i} className="relative w-full aspect-video md:aspect-[21/9] border-2 border-black overflow-hidden bg-zinc-100 shadow-[8px_8px_0_black] mb-6">
+                  <div key={lb.firebaseId || i} className="relative w-full aspect-video md:aspect-[21/9] border-2 border-black overflow-hidden bg-zinc-100 shadow-[8px_8px_0_black] mb-6 cursor-pointer" onClick={() => handleBannerClick(lb)}>
                     {lb.type === 'video' ? (
                       <video src={lb.image} autoPlay muted loop playsInline className="w-full h-full object-cover" />
                     ) : (
                       <img src={lb.image} className="w-full h-full object-cover" alt="Ads" />
                     )}
                     <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em]">PROMOTED</div>
+                    {lb.link && (
+                      <div className="absolute bottom-4 right-4 bg-white text-black px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-1">
+                        <ExternalLink size={10} /> LINK
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -300,13 +366,18 @@ const StorePage = ({
             {portraitBanners.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                 {portraitBanners.map((pb) => (
-                  <div key={pb.firebaseId} className="relative overflow-hidden group border-2 border-black bg-zinc-100 aspect-[9/16]">
+                  <div key={pb.firebaseId} className="relative overflow-hidden group border-2 border-black bg-zinc-100 aspect-[9/16] cursor-pointer" onClick={() => handleBannerClick(pb)}>
                     {pb.type === 'video' ? (
                       <video src={pb.image} autoPlay muted loop playsInline className="w-full h-full object-cover" />
                     ) : (
                       <img src={pb.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Clip" />
                     )}
                     <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase border border-black text-black">CLIP</div>
+                    {pb.link && (
+                      <div className="absolute bottom-2 md:bottom-4 right-2 md:right-4 bg-black text-white px-1.5 md:px-2 py-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-1">
+                        <ExternalLink size={8} />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -542,14 +613,14 @@ const AdminDashboard = ({
     // Forms
     const [catForm, setCatForm] = useState({ name: '', app: '', price: '', desc: '', isBestSeller: false, imageUrl: '' });
     const [infoForm, setInfoForm] = useState({ title: '', content: '', imageUrl: '', isFeatured: false });
-    const [banForm, setBanForm] = useState({ title: '', desc: '', imageUrl: '', type: 'image', orientation: 'landscape' });
+    const [banForm, setBanForm] = useState({ title: '', desc: '', imageUrl: '', type: 'image', orientation: 'landscape', link: '' });
     const [trxForm, setTrxForm] = useState({ name: '', app: '', durationDays: '', email: '' });
 
     const openEdit = (type, data) => {
         setEditingId(data.firebaseId);
         if(type === 'catalog') setCatForm({...data, imageUrl: data.image});
         if(type === 'news') setInfoForm({...data, imageUrl: data.image});
-        if(type === 'banner') setBanForm({...data, imageUrl: data.image});
+        if(type === 'banner') setBanForm({...data, imageUrl: data.image, link: data.link || ''});
         if(type === 'trx') setTrxForm(data);
         setIsModalOpen(true);
     };
@@ -559,25 +630,30 @@ const AdminDashboard = ({
             {/* Mobile Header */}
             <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b-2 border-black z-50 flex justify-between items-center p-4">
                 <h2 className="font-heading text-xl uppercase tracking-tighter">Admin Panel</h2>
-                <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 border border-black">
+                <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 border border-black cursor-hover">
                     {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
                 </button>
             </div>
 
             {/* Mobile Menu Overlay */}
-            {isMobileMenuOpen && (
-                <div className="md:hidden fixed inset-0 bg-white z-40 pt-16">
-                    <div className="p-6 space-y-2">
-                        {tabs.map(tab => (
-                            <button key={tab} onClick={() => { setActiveTab(tab); setIsMobileMenuOpen(false); }} className={`w-full text-left font-heading text-lg p-4 border border-black transition-all ${activeTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:bg-zinc-50'}`}>
-                                {tab}
-                            </button>
-                        ))}
-                        <button onClick={handleLogout} className="w-full mt-4 flex items-center justify-center gap-2 text-red-600 font-bold text-xs uppercase tracking-widest p-4 border border-red-600">
+            <div className={`md:hidden fixed inset-0 bg-white z-40 pt-16 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className="p-6 space-y-2 h-full overflow-y-auto">
+                    {tabs.map(tab => (
+                        <button key={tab} onClick={() => { setActiveTab(tab); setIsMobileMenuOpen(false); }} className={`w-full text-left font-heading text-lg p-4 border border-black transition-all mb-2 ${activeTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:bg-zinc-50'}`}>
+                            {tab}
+                        </button>
+                    ))}
+                    <div className="mt-6 pt-6 border-t border-black">
+                        <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 text-red-600 font-bold text-xs uppercase tracking-widest p-4 border border-red-600 hover:bg-red-600 hover:text-white transition-colors cursor-hover">
                             <LogOut size={14}/> LOGOUT SYSTEM
                         </button>
                     </div>
                 </div>
+            </div>
+
+            {/* Overlay untuk menutup menu mobile */}
+            {isMobileMenuOpen && (
+                <div className="md:hidden fixed inset-0 bg-black/50 z-30" onClick={() => setIsMobileMenuOpen(false)}></div>
             )}
 
             {/* Sidebar for Desktop */}
@@ -588,12 +664,12 @@ const AdminDashboard = ({
                 </div>
                 <nav className="space-y-1">
                     {tabs.map(tab => (
-                        <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left font-heading text-lg p-3 border border-black transition-all mb-2 ${activeTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:bg-zinc-50'}`}>
+                        <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left font-heading text-lg p-3 border border-black transition-all mb-2 cursor-hover ${activeTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:bg-zinc-50'}`}>
                             {tab}
                         </button>
                     ))}
                 </nav>
-                <button onClick={handleLogout} className="mt-20 flex items-center gap-2 text-red-600 font-bold text-[10px] uppercase tracking-widest">
+                <button onClick={handleLogout} className="mt-20 flex items-center gap-2 text-red-600 font-bold text-[10px] uppercase tracking-widest cursor-hover hover:text-red-800 transition-colors">
                     <LogOut size={14}/> LOGOUT SYSTEM
                 </button>
             </aside>
@@ -602,8 +678,11 @@ const AdminDashboard = ({
             <main className="flex-1 p-4 md:p-8 lg:p-16 overflow-y-auto no-scrollbar mt-16 md:mt-0">
                 {/* Mobile Tabs Indicator */}
                 <div className="md:hidden mb-6">
-                    <div className="bg-black text-white p-3 font-heading text-center uppercase tracking-tighter">
-                        {activeTab}
+                    <div className="bg-black text-white p-3 font-heading text-center uppercase tracking-tighter flex justify-between items-center">
+                        <span>{activeTab}</span>
+                        <button onClick={() => setIsMobileMenuOpen(true)} className="p-1">
+                            <ChevronDown size={20} className={`transform transition-transform ${isMobileMenuOpen ? 'rotate-180' : ''}`} />
+                        </button>
                     </div>
                 </div>
 
@@ -613,7 +692,7 @@ const AdminDashboard = ({
                         <h2 className="text-4xl md:text-8xl font-heading tracking-tighter">SYSTEM</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {['Aktif', 'Perbaikan', 'Mati'].map(s => (
-                                <button key={s} onClick={() => setGlobalStatus(s)} className={`p-6 md:p-12 border-2 font-heading text-2xl md:text-4xl transition-all ${globalStatus === s ? 'bg-black text-white border-black' : 'text-zinc-200 border-zinc-100 hover:border-black'}`}>
+                                <button key={s} onClick={() => setGlobalStatus(s)} className={`p-6 md:p-12 border-2 font-heading text-2xl md:text-4xl transition-all cursor-hover ${globalStatus === s ? 'bg-black text-white border-black' : 'text-zinc-200 border-zinc-100 hover:border-black'}`}>
                                     {s.toUpperCase()}
                                 </button>
                             ))}
@@ -626,7 +705,7 @@ const AdminDashboard = ({
                     <div className="fade-up">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-10 border-b-2 border-black pb-4 gap-4">
                             <h2 className="text-4xl md:text-8xl font-heading tracking-tighter">CATALOG</h2>
-                            <button onClick={() => { setEditingId(null); setCatForm({ name: '', app: '', price: '', desc: '', isBestSeller: false, imageUrl: '' }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs">
+                            <button onClick={() => { setEditingId(null); setCatForm({ name: '', app: '', price: '', desc: '', isBestSeller: false, imageUrl: '' }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs cursor-hover hover:bg-[#ea281e] transition-colors">
                                 ADD NEW
                             </button>
                         </div>
@@ -643,10 +722,10 @@ const AdminDashboard = ({
                                         </div>
                                     </div>
                                     <div className="flex gap-2 w-full md:w-auto justify-end">
-                                        <button onClick={() => openEdit('catalog', item)} className="p-2 border border-black hover:bg-black transition-colors text-xs md:text-base">
+                                        <button onClick={() => openEdit('catalog', item)} className="p-2 border border-black hover:bg-black transition-colors text-xs md:text-base cursor-hover">
                                             <Pencil size={16}/>
                                         </button>
-                                        <button onClick={() => handleDelete('catalog', item.firebaseId)} className="p-2 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors text-xs md:text-base">
+                                        <button onClick={() => handleDelete('catalog', item.firebaseId)} className="p-2 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors text-xs md:text-base cursor-hover">
                                             <Trash2 size={16}/>
                                         </button>
                                     </div>
@@ -661,7 +740,7 @@ const AdminDashboard = ({
                     <div className="fade-up">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-10 border-b-2 border-black pb-4 gap-4">
                             <h2 className="text-4xl md:text-8xl font-heading tracking-tighter">JOURNAL</h2>
-                            <button onClick={() => { setEditingId(null); setInfoForm({ title: '', content: '', imageUrl: '', isFeatured: false }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs">
+                            <button onClick={() => { setEditingId(null); setInfoForm({ title: '', content: '', imageUrl: '', isFeatured: false }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs cursor-hover hover:bg-[#ea281e] transition-colors">
                                 NEW POST
                             </button>
                         </div>
@@ -676,10 +755,10 @@ const AdminDashboard = ({
                                         <p className="text-[10px] font-mono text-zinc-400 font-bold mt-1 uppercase">{info.date}</p>
                                     </div>
                                     <div className="flex gap-2 w-full md:w-auto justify-end">
-                                        <button onClick={() => openEdit('news', info)} className="p-2 border border-black hover:bg-black transition-colors">
+                                        <button onClick={() => openEdit('news', info)} className="p-2 border border-black hover:bg-black transition-colors cursor-hover">
                                             <Pencil size={16}/>
                                         </button>
-                                        <button onClick={() => handleDelete('informations', info.firebaseId)} className="p-2 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors">
+                                        <button onClick={() => handleDelete('informations', info.firebaseId)} className="p-2 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors cursor-hover">
                                             <Trash2 size={16}/>
                                         </button>
                                     </div>
@@ -694,7 +773,7 @@ const AdminDashboard = ({
                     <div className="fade-up">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-10 border-b-2 border-black pb-4 gap-4">
                             <h2 className="text-4xl md:text-8xl font-heading tracking-tighter">BANNERS</h2>
-                            <button onClick={() => { setEditingId(null); setBanForm({ title: '', desc: '', imageUrl: '', type: 'image', orientation: 'landscape' }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs">
+                            <button onClick={() => { setEditingId(null); setBanForm({ title: '', desc: '', imageUrl: '', type: 'image', orientation: 'landscape', link: '' }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs cursor-hover hover:bg-[#ea281e] transition-colors">
                                 NEW AD
                             </button>
                         </div>
@@ -710,16 +789,21 @@ const AdminDashboard = ({
                                         <div className="absolute top-2 left-2 bg-black text-white px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest">
                                             {b.orientation}
                                         </div>
+                                        {b.link && (
+                                            <div className="absolute bottom-2 right-2 bg-white text-black px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest">
+                                                LINK
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-0">
                                         <h3 className="font-heading text-lg md:text-2xl truncate uppercase tracking-tighter italic line-clamp-1">
                                             {b.title}
                                         </h3>
                                         <div className="flex gap-2">
-                                            <button onClick={() => openEdit('banner', b)} className="p-1.5 border border-black hover:bg-black transition-colors">
+                                            <button onClick={() => openEdit('banner', b)} className="p-1.5 border border-black hover:bg-black transition-colors cursor-hover">
                                                 <Pencil size={14}/>
                                             </button>
-                                            <button onClick={() => handleDelete('banners', b.firebaseId)} className="p-1.5 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors">
+                                            <button onClick={() => handleDelete('banners', b.firebaseId)} className="p-1.5 border border-[#ea281e] text-[#ea281e] hover:bg-[#ea281e] hover:text-white transition-colors cursor-hover">
                                                 <Trash2 size={14}/>
                                             </button>
                                         </div>
@@ -735,7 +819,7 @@ const AdminDashboard = ({
                     <div className="fade-up">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-10 border-b-2 border-black pb-4 gap-4">
                             <h2 className="text-4xl md:text-8xl font-heading tracking-tighter">LOGBOOK</h2>
-                            <button onClick={() => { setEditingId(null); setTrxForm({ name: '', app: '', durationDays: '', email: '' }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs">
+                            <button onClick={() => { setEditingId(null); setTrxForm({ name: '', app: '', durationDays: '', email: '' }); setIsModalOpen(true); }} className="bg-black text-white px-4 md:px-6 py-2 font-bold uppercase text-xs cursor-hover hover:bg-[#ea281e] transition-colors">
                                 NEW ENTRY
                             </button>
                         </div>
@@ -760,10 +844,10 @@ const AdminDashboard = ({
                                             <td className="p-4 font-heading text-lg"><TimeDisplay targetDate={t.targetDate} status={t.status}/></td>
                                             <td className="p-4 text-right">
                                                 <div className="flex justify-end gap-3">
-                                                    <button onClick={() => openEdit('trx', t)} className="text-blue-600 hover:scale-110 transition-transform">
+                                                    <button onClick={() => openEdit('trx', t)} className="text-blue-600 hover:scale-110 transition-transform cursor-hover">
                                                         <Pencil size={16}/>
                                                     </button>
-                                                    <button onClick={() => handleDelete('transactions', t.firebaseId)} className="text-[#ea281e] hover:scale-110 transition-transform">
+                                                    <button onClick={() => handleDelete('transactions', t.firebaseId)} className="text-[#ea281e] hover:scale-110 transition-transform cursor-hover">
                                                         <Trash2 size={16}/>
                                                     </button>
                                                 </div>
@@ -791,10 +875,10 @@ const AdminDashboard = ({
                             <p className="text-lg md:text-xl lg:text-2xl font-serif leading-tight italic">"{c.text}"</p>
                           </div>
                           <div className="flex gap-3 w-full md:w-auto">
-                            <button onClick={() => handleApproveReview(c.firebaseId)} className="flex-1 bg-green-600 text-white px-4 md:px-6 py-2 md:py-3 font-bold uppercase text-[10px] border border-black shadow-[2px_2px_0_black] md:shadow-[4px_4px_0_black] hover:bg-green-700 transition-colors">
+                            <button onClick={() => handleApproveReview(c.firebaseId)} className="flex-1 bg-green-600 text-white px-4 md:px-6 py-2 md:py-3 font-bold uppercase text-[10px] border border-black shadow-[2px_2px_0_black] md:shadow-[4px_4px_0_black] hover:bg-green-700 transition-colors cursor-hover">
                               APPROVE
                             </button>
-                            <button onClick={() => handleDelete('comments', c.firebaseId)} className="flex-1 bg-red-600 text-white px-4 md:px-6 py-2 md:py-3 font-bold uppercase text-[10px] border border-black shadow-[2px_2px_0_black] md:shadow-[4px_4px_0_black] hover:bg-red-700 transition-colors">
+                            <button onClick={() => handleDelete('comments', c.firebaseId)} className="flex-1 bg-red-600 text-white px-4 md:px-6 py-2 md:py-3 font-bold uppercase text-[10px] border border-black shadow-[2px_2px_0_black] md:shadow-[4px_4px_0_black] hover:bg-red-700 transition-colors cursor-hover">
                               REJECT
                             </button>
                           </div>
@@ -820,15 +904,32 @@ const AdminDashboard = ({
                             <input placeholder="PRICE" className="w-full border-b border-zinc-100 py-3 outline-none uppercase font-bold text-[10px]" value={catForm.price} onChange={e => setCatForm({...catForm, price: e.target.value})}/>
                         </div>
                         <div className="border-2 border-dashed border-zinc-200 p-6 md:p-8 text-center relative hover:border-black transition-colors cursor-pointer">
-                            <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleImageFile(e, setCatForm, catForm)}/>
-                            {isUploading ? "PROCESS..." : catForm.imageUrl ? <img src={catForm.imageUrl} className="h-40 mx-auto border border-black" alt="Preview"/> : <div className="flex flex-col items-center text-zinc-300 font-bold uppercase text-[10px]"><ImageIcon size={40}/><span className="mt-2">Upload Visual</span></div>}
+                            <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleImageFile(e, setCatForm, catForm)} accept="image/*,video/*"/>
+                            {isUploading ? (
+                                <div className="flex flex-col items-center">
+                                    <Loader2 className="animate-spin" size={24} />
+                                    <span className="mt-2 text-xs font-bold uppercase">UPLOADING...</span>
+                                </div>
+                            ) : catForm.imageUrl ? (
+                                catForm.imageUrl.match(/\.(mp4|mov|avi|wmv|flv|mkv)$/i) ? (
+                                    <video src={catForm.imageUrl} className="h-40 mx-auto border border-black" controls />
+                                ) : (
+                                    <img src={catForm.imageUrl} className="h-40 mx-auto border border-black" alt="Preview"/>
+                                )
+                            ) : (
+                                <div className="flex flex-col items-center text-zinc-300 font-bold uppercase text-[10px]">
+                                    <ImageIcon size={40}/>
+                                    <span className="mt-2">Upload Image/Video</span>
+                                    <span className="text-[8px] mt-1">Supports: JPG, PNG, MP4, MOV</span>
+                                </div>
+                            )}
                         </div>
                         <textarea placeholder="DESC" className="w-full h-32 border border-zinc-100 p-3 font-mono text-xs uppercase" value={catForm.desc} onChange={e => setCatForm({...catForm, desc: e.target.value})}/>
                         <label className="flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest cursor-pointer">
                             <input type="checkbox" checked={catForm.isBestSeller} onChange={e => setCatForm({...catForm, isBestSeller: e.target.checked})}/> 
                             SHOWCASE ON HOME
                         </label>
-                        <button onClick={async () => { await handleSaveCatalog(catForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest hover:bg-[#ea281e] transition-colors">
+                        <button onClick={async () => { await handleSaveCatalog(catForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest hover:bg-[#ea281e] transition-colors cursor-hover">
                             COMMIT CHANGES
                         </button>
                     </div>
@@ -837,11 +938,24 @@ const AdminDashboard = ({
                     <div className="space-y-6">
                         <input placeholder="TITLE" className="w-full border-b-2 border-black py-3 outline-none font-heading text-xl md:text-2xl uppercase" value={infoForm.title} onChange={e => setInfoForm({...infoForm, title: e.target.value})}/>
                         <div className="border-2 border-dashed border-zinc-200 p-6 md:p-8 text-center relative hover:border-black cursor-pointer">
-                            <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleImageFile(e, setInfoForm, infoForm)}/>
-                            {isUploading ? "PROCESS..." : infoForm.imageUrl ? <img src={infoForm.imageUrl} className="h-40 mx-auto" alt="Preview"/> : "Upload Source"}
+                            <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleImageFile(e, setInfoForm, infoForm)} accept="image/*,video/*"/>
+                            {isUploading ? (
+                                <div className="flex flex-col items-center">
+                                    <Loader2 className="animate-spin" size={24} />
+                                    <span className="mt-2 text-xs font-bold uppercase">UPLOADING...</span>
+                                </div>
+                            ) : infoForm.imageUrl ? (
+                                infoForm.imageUrl.match(/\.(mp4|mov|avi|wmv|flv|mkv)$/i) ? (
+                                    <video src={infoForm.imageUrl} className="h-40 mx-auto" controls />
+                                ) : (
+                                    <img src={infoForm.imageUrl} className="h-40 mx-auto" alt="Preview"/>
+                                )
+                            ) : (
+                                "Upload Source"
+                            )}
                         </div>
                         <textarea placeholder="CONTENT" className="w-full h-48 border border-zinc-100 p-3 font-mono text-xs uppercase" value={infoForm.content} onChange={e => setInfoForm({...infoForm, content: e.target.value})}/>
-                        <button onClick={async () => { await handleSaveInfo(infoForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest">
+                        <button onClick={async () => { await handleSaveInfo(infoForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest cursor-hover hover:bg-[#ea281e] transition-colors">
                             DEPLOY POST
                         </button>
                     </div>
@@ -859,20 +973,28 @@ const AdminDashboard = ({
                                 <option value="portrait">PORTRAIT</option>
                             </select>
                         </div>
+                        <input placeholder="LINK (optional) e.g. https://example.com" className="w-full border-b-2 border-black py-3 outline-none font-mono text-xs" value={banForm.link} onChange={e => setBanForm({...banForm, link: e.target.value})}/>
                         <div className="border-2 border-dashed border-zinc-200 p-6 md:p-10 text-center relative cursor-pointer hover:border-black transition-colors">
-                            <input type="file" className="absolute inset-0 opacity-0" onChange={e => handleImageFile(e, setBanForm, banForm)}/>
+                            <input type="file" className="absolute inset-0 opacity-0" onChange={e => handleImageFile(e, setBanForm, banForm)} accept="image/*,video/*"/>
                             {isUploading ? (
-                                <div>PROCESS...</div>
+                                <div className="flex flex-col items-center">
+                                    <Loader2 className="animate-spin" size={24} />
+                                    <span className="mt-2 text-xs font-bold uppercase">UPLOADING...</span>
+                                </div>
                             ) : banForm.imageUrl ? (
                                 <div>
-                                    <img src={banForm.imageUrl} alt="Preview" className="h-40 mx-auto mb-2" />
+                                    {banForm.imageUrl.match(/\.(mp4|mov|avi|wmv|flv|mkv)$/i) ? (
+                                        <video src={banForm.imageUrl} className="h-40 mx-auto mb-2" controls />
+                                    ) : (
+                                        <img src={banForm.imageUrl} alt="Preview" className="h-40 mx-auto mb-2" />
+                                    )}
                                     <div className="text-[10px] truncate font-bold text-green-600">{banForm.imageUrl.substring(0,50)}...</div>
                                 </div>
                             ) : (
-                                <div className="uppercase font-bold text-[10px] text-zinc-300">Choose File</div>
+                                <div className="uppercase font-bold text-[10px] text-zinc-300">Choose Image/Video File</div>
                             )}
                         </div>
-                        <button onClick={async () => { const s = await handleSaveBanner(banForm, editingId); if(s) setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest">
+                        <button onClick={async () => { const s = await handleSaveBanner(banForm, editingId); if(s) setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest cursor-hover hover:bg-[#ea281e] transition-colors">
                             LAUNCH AD
                         </button>
                     </div>
@@ -885,7 +1007,7 @@ const AdminDashboard = ({
                             <input type="number" placeholder="DAYS (DURASI)" className="w-full border-b border-zinc-100 py-3 outline-none font-bold text-[10px] uppercase" value={trxForm.durationDays} onChange={e => setTrxForm({...trxForm, durationDays: e.target.value})}/>
                         </div>
                         <input placeholder="USER EMAIL" className="w-full border-b border-zinc-100 py-3 outline-none font-mono text-[10px] font-bold" value={trxForm.email} onChange={e => setTrxForm({...trxForm, email: e.target.value})}/>
-                        <button onClick={async () => { await handleSaveTransaction(trxForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest">
+                        <button onClick={async () => { await handleSaveTransaction(trxForm, editingId); setIsModalOpen(false); }} className="w-full bg-black text-white py-4 md:py-5 font-bold uppercase tracking-widest cursor-hover hover:bg-[#ea281e] transition-colors">
                             COMMIT DATA
                         </button>
                     </div>
@@ -1011,6 +1133,7 @@ export default function App() {
         image: data.imageUrl || '', 
         type: data.type || 'image', 
         orientation: data.orientation || 'landscape', 
+        link: data.link || '',
         id: editId ? data.id : Date.now() 
       };
       if(editId) await updateDoc(doc(db, "banners", editId), payload);
@@ -1044,6 +1167,13 @@ export default function App() {
   const handleImageFile = async (e, setter, currentData) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    // Cek ukuran file (max 50MB untuk video, 10MB untuk gambar)
+    const maxSize = file.type.includes('video') ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert(`File terlalu besar! Maksimal: ${file.type.includes('video') ? '50MB' : '10MB'}`);
+      return;
+    }
 
     setIsUploading(true);
     try {
